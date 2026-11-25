@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>麻醉科忘年會・主持人投票台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#0b1016;--panel:#121a23;--panel2:#18222e;--line:#263241;--text:#e7edf3;--muted:#8a99a8;--green:#3ef08a;--yellow:#ffd23f;--red:#ff4d5e}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Noto Sans TC",system-ui,sans-serif;padding:16px;min-height:100vh}
+button,input,select,textarea{font-family:inherit}
+h1{font-size:24px;font-weight:900}
+h1 span{color:var(--green)}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sp{flex:1}
+.badge{border-radius:99px;padding:5px 12px;font-size:14px;font-weight:700;border:1px solid var(--line);background:var(--panel)}
+.badge.demo{border-color:#b38cff;color:#d9c7ff}
+.badge.ok{border-color:var(--green);color:#bff5d4}
+.badge.warn{border-color:var(--red);color:#ffb3bb}
+.btn{border:none;border-radius:10px;padding:10px 18px;font-size:16px;font-weight:700;background:var(--green);color:#06120b;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.red{background:var(--red);color:#fff}
+.btn.purple{background:#b38cff;color:#160a2e}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:14px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card h2{font-size:15px;color:var(--muted);letter-spacing:1px;margin-bottom:10px}
+#qr{background:#fff;padding:12px;border-radius:12px;display:flex;justify-content:center}
+#qr img,#qr canvas{width:100%!important;height:auto!important;max-width:300px}
+.url{font-size:13px;color:var(--muted);word-break:break-all;margin-top:8px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 10px;font-size:16px}
+textarea{font-family:"JetBrains Mono",monospace;font-size:12px;min-height:120px}
+.optin{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.live-title{font-size:26px;font-weight:900;margin:4px 0 10px;line-height:1.35}
+.cd{font-family:"JetBrains Mono",monospace;font-size:64px;font-weight:800;color:var(--yellow);line-height:1}
+.bars{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.bar{display:grid;grid-template-columns:44px 1fr 90px;align-items:center;gap:10px;font-size:18px;font-weight:700}
+.bar .n{font-size:28px;text-align:center}
+.bar .track{height:40px;background:var(--panel2);border-radius:10px;overflow:hidden;position:relative}
+.bar .fill{height:100%;width:0;transition:width .4s;display:flex;align-items:center;padding-left:12px;white-space:nowrap;color:#fff;font-size:17px}
+.bar .cnt{font-family:"JetBrains Mono",monospace;text-align:right}
+.bar.win .track{outline:4px solid #fff}
+.c1{background:#e0414f}.c2{background:#2f7de1}.c3{background:#d9a31a}.c4{background:#27a361}
+.total{margin-top:10px;color:var(--muted);font-size:16px}
+.result{margin-top:12px;font-size:24px;font-weight:900;color:var(--green)}
+details{margin-top:14px}
+summary{cursor:pointer;font-weight:700;font-size:16px;padding:6px 0}
+.hint{font-size:13px;color:var(--muted);line-height:1.7}
+.hint b{color:var(--text)}
+#fullQR{position:fixed;inset:0;background:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:9;color:#111}
+#fullQR.on{display:flex}
+#fullQR .q{width:min(70vh,80vw)}
+#fullQR .q img,#fullQR .q canvas{width:100%!important;height:auto!important}
+#fullQR h2{font-size:clamp(24px,4vw,48px);font-weight:900}
+#fullQR p{font-size:clamp(16px,2vw,24px)}
+.msg{margin-top:8px;font-size:14px;min-height:20px}
+.msg.err{color:#ffb3bb}.msg.ok{color:#bff5d4}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>🎮 麻醉科忘年會<span>・主持人投票台</span></h1>
+  <div class="sp"></div>
+  <span class="badge" id="modeBadge">載入中…</span>
+  <span class="badge" id="authBadge" style="display:none"></span>
+  <button class="btn ghost" id="loginBtn" style="display:none">用 Google 登入（主持人）</button>
+</div>
+
+<div class="grid">
+  <div>
+    <div class="card">
+      <h2>📱 觀眾掃這個投票（不用登入）</h2>
+      <div id="qr"></div>
+      <div class="url" id="voteUrl"></div>
+      <div class="row"><button class="btn" id="fullQRBtn">🔍 全螢幕顯示 QR code</button></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>✏️ 出題</h2>
+      <label>範例題目（測試用）</label>
+      <select id="preset"></select>
+      <label>題目</label>
+      <input type="text" id="qTitle">
+      <label>類型</label>
+      <select id="qKind"><option value="dir">🧭 選方向（下一步去哪）</option><option value="quiz">❓ 選答案</option></select>
+      <label>四個選項</label>
+      <div class="optin">
+        <input type="text" id="o1" placeholder="①"><input type="text" id="o2" placeholder="②">
+        <input type="text" id="o3" placeholder="③"><input type="text" id="o4" placeholder="④">
+      </div>
+      <label>秒數</label>
+      <input type="number" id="qSec" value="30" min="5" max="120">
+      <div class="row"><button class="btn" id="startBtn">▶ 開始投票</button></div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" id="liveCard">
+      <h2>📊 即時投票</h2>
+      <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px"><div class="live-title" id="liveTitle">還沒開始投票</div></div>
+        <div class="cd" id="cd">--</div>
+      </div>
+      <div class="bars" id="bars"></div>
+      <div class="total" id="total"></div>
+      <div class="result" id="result"></div>
+      <div class="row">
+        <button class="btn red" id="endBtn" disabled>⏹ 提早結束</button>
+        <button class="btn ghost" id="idleBtn">↩ 回到「等待下一題」</button>
+        <button class="btn purple" id="botBtn" style="display:none">🤖 模擬 150 人投票</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <details id="helper">
+        <summary>🛠️ 設定小幫手（設定 Firebase 時用）</summary>
+        <p class="hint" style="margin-top:8px">照教學文件做到「取得 Firebase 設定」那一步後，把 Firebase 給你的那段程式碼<b>整段</b>貼到下面，再填你的 Gmail，按「產生」。</p>
+        <label>① 貼上 Firebase 給你的設定（包含 apiKey 那一段）</label>
+        <textarea id="cfgIn" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;...&quot;,&#10;  authDomain: &quot;...&quot;,&#10;  ...&#10;};"></textarea>
+        <label>② 主持人的 Gmail</label>
+        <input type="text" id="emailIn" placeholder="example@gmail.com">
+        <div class="row"><button class="btn" id="genBtn">產生設定</button></div>
+        <div class="msg" id="genMsg"></div>
+        <label>③ 新的 config.js（整個複製，取代 GitHub 上的 config.js）</label>
+        <textarea id="cfgOut" readonly></textarea>
+        <div class="row"><button class="btn ghost" data-copy="cfgOut">📋 複製 config.js</button></div>
+        <label>④ Firestore 安全規則（整個複製，貼到 Firebase 的「規則」分頁）</label>
+        <textarea id="rulesOut" readonly></textarea>
+        <div class="row"><button class="btn ghost" data-copy="rulesOut">📋 複製規則</button></div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div id="fullQR"><h2>📱 掃描加入投票</h2><div class="q" id="qrBig"></div><p id="fullUrl"></p><p style="color:#888">（點任何地方關閉）</p></div>
+
+<script src="config.js"></script>
+<script type="module">
+import { connect, IS_DEMO } from './common.js';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- presets ---------- */
+const PRESETS=[
+  {t:'學長被 call 了！要先去哪裡？',k:'dir',o:['往開刀房','往恢復室','搭電梯下 B1 血庫','回值班室繼續睡']},
+  {t:'過敏性休克，第一個要給的藥？',k:'quiz',o:['Epinephrine','Phenylephrine','Dantrolene','Midazolam']},
+  {t:'外科說「快好了」，實際上還要多久？',k:'quiz',o:['5 分鐘','30 分鐘','2 小時','天亮交班後']},
+  {t:'測試題：今晚想吃什麼宵夜？',k:'quiz',o:['鹹酥雞','麻辣燙','泡麵','不吃，睡覺']},
+];
+$('preset').innerHTML='<option value="">—（自己輸入）—</option>'+PRESETS.map((p,i)=>`<option value="${i}">${esc(p.t)}</option>`).join('');
+$('preset').onchange=()=>{ const p=PRESETS[$('preset').value]; if(!p) return; $('qTitle').value=p.t; $('qKind').value=p.k; p.o.forEach((x,i)=>$('o'+(i+1)).value=x); };
+$('preset').value='0'; $('preset').onchange();
+
+/* ---------- QR ---------- */
+const voteUrl = new URL('index.html', location.href).href;
+$('voteUrl').textContent = voteUrl; $('fullUrl').textContent = voteUrl;
+function makeQR(el,size){ el.innerHTML=''; try{ new QRCode(el,{text:voteUrl,width:size,height:size,correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent='（QR code 載入失敗，請直接分享上面的網址）'; } }
+makeQR($('qr'),300);
+$('fullQRBtn').onclick=()=>{ makeQR($('qrBig'),800); $('fullQR').classList.add('on'); };
+$('fullQR').onclick=()=>$('fullQR').classList.remove('on');
+
+/* ---------- setup helper ---------- */
+function parseConfig(txt){
+  const out={};
+  const re=/(apiKey|authDomain|projectId|storageBucket|messagingSenderId|appId|measurementId)\s*:\s*["'`]([^"'`]+)["'`]/g;
+  let m; while((m=re.exec(txt))) out[m[1]]=m[2];
+  return out;
+}
+function rulesText(email){
+  return `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 投票狀態：大家都能看，只有主持人能改
+    match /game/state {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.token.email == "${email||'你的Gmail'}";
+    }
+
+    // 選票：任何人都能投（不用登入），但只能投 1~4，而且只能在開放時間投目前這一題
+    match /votes/{voteId} {
+      allow read: if true;
+      allow create, update: if
+           request.resource.data.keys().hasOnly(['round', 'choice', 't'])
+        && request.resource.data.round is string
+        && request.resource.data.choice is int
+        && request.resource.data.choice >= 1
+        && request.resource.data.choice <= 4
+        && request.resource.data.t == request.time
+        && voteId.matches(request.resource.data.round + '_[A-Za-z0-9]+')
+        && get(/databases/$(database)/documents/game/state).data.status == 'open'
+        && get(/databases/$(database)/documents/game/state).data.round == request.resource.data.round;
+      allow delete: if false;
+    }
+  }
+}`;
+}
+$('rulesOut').value = rulesText((window.HOST_EMAIL||'').trim());
+$('genBtn').onclick=()=>{
+  const cfg=parseConfig($('cfgIn').value), email=$('emailIn').value.trim();
+  const need=['apiKey','authDomain','projectId','appId'];
+  const miss=need.filter(k=>!cfg[k]);
+  if(miss.length){ $('genMsg').className='msg err'; $('genMsg').textContent='❌ 找不到：'+miss.join('、')+'。請確認有把 Firebase 給的那整段（含大括號）都貼進來。'; return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ $('genMsg').className='msg err'; $('genMsg').textContent='❌ 請填正確的 Gmail。'; return; }
+  $('cfgOut').value =
+`// 麻醉科忘年會投票系統 — 設定檔（由設定小幫手產生）
+window.FIREBASE_CONFIG = ${JSON.stringify(cfg,null,2)};
+
+// 主持人的 Gmail（只有這個帳號登入後可以開始／結束投票）
+window.HOST_EMAIL = ${JSON.stringify(email)};
+`;
+  $('rulesOut').value = rulesText(email);
+  $('genMsg').className='msg ok'; $('genMsg').textContent='✅ 產生好了！照教學把下面兩段分別貼到 GitHub 和 Firebase。';
+};
+document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{
+  const ta=$(b.dataset.copy); ta.select();
+  try{ await navigator.clipboard.writeText(ta.value); b.textContent='✅ 已複製'; }catch(e){ document.execCommand && document.execCommand('copy'); b.textContent='✅ 已複製（如果沒成功請手動全選複製）'; }
+  setTimeout(()=>b.textContent=b.dataset.copy==='cfgOut'?'📋 複製 config.js':'📋 複製規則',2500);
+});
+
+/* ---------- live voting ---------- */
+let api=null, state={status:'idle'}, counts=[0,0,0,0], unsubVotes=null, timer=null, closing=false;
+
+function canHost(){ return api && api.isHost(); }
+function setMsg(t,cls=''){ $('msg').className='msg '+cls; $('msg').textContent=t; }
+
+function renderLive(){
+  const st=state, opts=Array.isArray(st.options)?st.options:['','','',''];
+  const total=counts.reduce((a,b)=>a+b,0);
+  $('liveTitle').textContent = st.status==='idle' ? '等待下一題（觀眾手機顯示「等待中」）' : (st.title||'');
+  $('bars').innerHTML = st.status==='idle' ? '' : opts.map((o,i)=>{
+    const pct = total? Math.round(counts[i]/total*100):0;
+    return `<div class="bar ${st.status==='closed'&&st.result===i+1?'win':''}"><div class="n">${'①②③④'[i]}</div>
+      <div class="track"><div class="fill c${i+1}" style="width:${Math.max(pct,2)}%">${esc(o)}</div></div>
+      <div class="cnt">${counts[i]} 票<br><span style="font-size:13px;color:var(--muted)">${pct}%</span></div></div>`;
+  }).join('');
+  $('total').textContent = st.status==='idle'?'':`共 ${total} 票`;
+  $('result').textContent = st.status==='closed' && st.result ? `🏆 結果：${'①②③④'[st.result-1]} ${opts[st.result-1]}${st.tie?'（平手，抽籤決定）':''}` : '';
+  $('endBtn').disabled = !(st.status==='open' && canHost());
+  $('startBtn').disabled = !canHost();
+  $('idleBtn').disabled = !canHost();
+  $('botBtn').style.display = (api && api.mode==='demo' && st.status==='open') ? '' : 'none';
+}
+
+function watchVotes(round){
+  if(unsubVotes){ unsubVotes(); unsubVotes=null; }
+  counts=[0,0,0,0];
+  if(!round) return;
+  unsubVotes = api.onVotes(round, c=>{ counts=c; renderLive(); });
+}
+
+function startTicker(){
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    if(state.status!=='open'){ $('cd').textContent= state.status==='closed'?'0':'--'; return; }
+    const left=Math.max(0,(state.endsAt||0)-Date.now());
+    $('cd').textContent=Math.ceil(left/1000);
+    if(left<=0 && canHost() && !closing) closeVote();
+  },200);
+}
+
+async function closeVote(){
+  closing=true;
+  try{
+    const max=Math.max(...counts);
+    let winners=[0,1,2,3].filter(i=>counts[i]===max);
+    let tie = max>0 && winners.length>1;
+    const pick = max===0 ? null : winners[Math.floor(Math.random()*winners.length)]+1;
+    await api.setState({status:'closed', result:pick, tie, counts});
+  }catch(e){ console.error(e); setMsg('❌ 結束投票失敗：'+e.message,'err'); }
+  closing=false;
+}
+
+$('startBtn').onclick=async()=>{
+  const options=[1,2,3,4].map(i=>$('o'+i).value.trim());
+  if(!$('qTitle').value.trim() || options.some(o=>!o)){ setMsg('❌ 題目和四個選項都要填。','err'); return; }
+  const sec=Math.max(5,Math.min(120,+$('qSec').value||30));
+  const round='r'+Date.now().toString(36);
+  try{
+    await api.setState({status:'open', round, title:$('qTitle').value.trim(), kind:$('qKind').value, options, seconds:sec, endsAt:Date.now()+sec*1000, result:null, tie:false, counts:null});
+    setMsg('✅ 投票開始！','ok');
+  }catch(e){ console.error(e); setMsg('❌ 開始失敗：'+e.message+'（是不是還沒用主持人帳號登入，或規則沒貼好？）','err'); }
+};
+$('endBtn').onclick=()=>closeVote();
+$('idleBtn').onclick=async()=>{ try{ await api.setState({status:'idle'}); setMsg(''); }catch(e){ setMsg('❌ '+e.message,'err'); } };
+$('botBtn').onclick=()=>{
+  const round=state.round; let sent=0;
+  const iv=setInterval(()=>{ if(state.status!=='open'||state.round!==round||sent>=150){ clearInterval(iv); return; } api.addBots(round,10); sent+=10; },400);
+};
+$('loginBtn').onclick=async()=>{ try{ await api.signIn(); }catch(e){ setMsg('❌ 登入失敗：'+e.message,'err'); } };
+
+(async()=>{
+  try{
+    api=await connect();
+  }catch(e){
+    console.error(e); $('modeBadge').className='badge warn'; $('modeBadge').textContent='⚠️ 連不上 Firebase'; setMsg('❌ '+e.message,'err'); return;
+  }
+  if(api.mode==='demo'){
+    $('modeBadge').className='badge demo'; $('modeBadge').textContent='🧪 Demo 模式（還沒設定 Firebase）';
+    $('helper').open=true;
+  }else{
+    $('modeBadge').className='badge ok'; $('modeBadge').textContent='🟢 Firebase 已連線';
+    $('loginBtn').style.display='';
+    api.onAuth(u=>{
+      const b=$('authBadge'); b.style.display='';
+      if(!u){ b.className='badge warn'; b.textContent='尚未登入'; $('loginBtn').style.display=''; }
+      else if(api.isHost()){ b.className='badge ok'; b.textContent='👑 主持人：'+u.email; $('loginBtn').style.display='none'; }
+      else { b.className='badge warn'; b.textContent='⚠️ '+u.email+' 不是主持人帳號'; }
+      renderLive();
+    });
+  }
+  let lastRound=null;
+  api.onState(st=>{
+    state=st||{status:'idle'};
+    if(state.round!==lastRound){ lastRound=state.round; watchVotes(state.status==='idle'?null:state.round); }
+    if(state.status==='closed' && Array.isArray(state.counts)) counts=state.counts.slice();
+    renderLive();
+  }, e=>setMsg('❌ 讀不到投票狀態：'+e.message+'（規則是否已貼上並發布？）','err'));
+  startTicker(); renderLive();
+})();
+</script>
+</body>
+</html>

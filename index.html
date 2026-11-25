@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>麻醉科忘年會・投票</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#0b1016;color:#e7edf3;font-family:"Noto Sans TC",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  display:flex;flex-direction:column;min-height:100dvh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{padding:14px 16px 8px;text-align:center}
+header h1{font-size:20px;font-weight:900;letter-spacing:1px}
+header h1 span{color:#3ef08a}
+#conn{font-size:12px;color:#8a99a8;margin-top:4px}
+main{flex:1;display:flex;flex-direction:column;padding:8px 14px 18px;gap:12px}
+.wait{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px;color:#8a99a8}
+.wait .big{font-size:64px;animation:bob 2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8px)}}
+.wait b{color:#e7edf3;font-size:20px}
+.q{background:#121a23;border:1px solid #263241;border-radius:16px;padding:14px 16px}
+.q .kind{font-size:13px;color:#ffd23f;font-weight:700;margin-bottom:4px}
+.q .title{font-size:21px;font-weight:900;line-height:1.4}
+.timer{display:flex;align-items:center;gap:10px}
+.timer .bar{flex:1;height:10px;background:#1c2530;border-radius:99px;overflow:hidden}
+.timer .bar i{display:block;height:100%;background:linear-gradient(90deg,#ff4d5e,#ffd23f);width:100%;transition:width .25s linear}
+.timer .sec{font-family:"JetBrains Mono",monospace;font-size:26px;font-weight:800;min-width:56px;text-align:right}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:1;min-height:260px}
+.opt{border:none;border-radius:18px;color:#fff;font-family:inherit;font-weight:900;font-size:20px;padding:12px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:6px;box-shadow:0 6px 0 rgba(0,0,0,.35);transition:transform .08s,opacity .2s,filter .2s;line-height:1.3;text-align:center}
+.opt .n{font-size:40px;line-height:1}
+.opt:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.o1{background:#e0414f}.o2{background:#2f7de1}.o3{background:#d9a31a}.o4{background:#27a361}
+.opts.voted .opt{opacity:.38;filter:saturate(.6)}
+.opts.voted .opt.mine{opacity:1;filter:none;outline:5px solid #fff;outline-offset:-5px}
+.opt:disabled{cursor:default}
+.note{text-align:center;font-size:15px;color:#bfe9cf;min-height:22px}
+.note.err{color:#ffb3bb}
+.result{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px}
+.result .lbl{color:#8a99a8;font-size:16px}
+.result .win{font-size:30px;font-weight:900;padding:18px 22px;border-radius:18px;color:#fff;max-width:100%}
+.result .mine{font-size:16px;color:#cfd8e1}
+footer{text-align:center;font-size:12px;color:#5d6d7d;padding-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 麻醉科忘年會<span>・投票</span></h1>
+  <div id="conn">連線中…</div>
+</header>
+<main id="main">
+  <div class="wait"><div class="big">⏳</div><b>連線中…</b></div>
+</main>
+<footer>不用登入・請保持這個頁面開著，題目出來會自動跳出</footer>
+
+<script src="config.js"></script>
+<script type="module">
+import { connect, IS_DEMO } from './common.js';
+
+const main = document.getElementById('main');
+const conn = document.getElementById('conn');
+let api=null, state={status:'idle'}, myVote={}, tick=null;
+
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function getMine(){ try{ return JSON.parse(sessionStorage.getItem('ane_my_votes')||'{}'); }catch(e){ return {}; } }
+function saveMine(){ try{ sessionStorage.setItem('ane_my_votes', JSON.stringify(myVote)); }catch(e){} }
+myVote = getMine();
+
+function render(){
+  clearInterval(tick);
+  const st=state;
+  if(st.status==='open' && Array.isArray(st.options)){
+    const mine=myVote[st.round];
+    main.innerHTML = `
+      <div class="q"><div class="kind">${st.kind==='dir'?'🧭 下一步要去哪裡？':'❓ 選一個答案'}</div><div class="title">${esc(st.title)}</div></div>
+      <div class="timer"><div class="bar"><i id="tb"></i></div><div class="sec" id="ts">--</div></div>
+      <div class="opts ${mine?'voted':''}" id="opts">
+        ${st.options.map((o,i)=>`<button class="opt o${i+1} ${mine===i+1?'mine':''}" data-c="${i+1}"><span class="n">${'①②③④'[i]}</span><span>${esc(o)}</span></button>`).join('')}
+      </div>
+      <div class="note" id="note">${mine?`✅ 已投 ${'①②③④'[mine-1]}，時間內可以改投`:'點一個選項就完成投票'}</div>`;
+    document.getElementById('opts').addEventListener('click', onPick);
+    const total = Math.max(1,(st.seconds||30));
+    const upd=()=>{
+      const left=Math.max(0,(st.endsAt||0)-Date.now())/1000;
+      const s=document.getElementById('ts'), b=document.getElementById('tb');
+      if(s) s.textContent=Math.ceil(left)+'s';
+      if(b) b.style.width=Math.min(100,left/total*100)+'%';
+    };
+    upd(); tick=setInterval(upd,250);
+  } else if(st.status==='closed' && Array.isArray(st.options)){
+    const w=st.result, mine=myVote[st.round];
+    main.innerHTML = `<div class="result">
+      <div class="lbl">投票結果</div>
+      <div class="win o${w||1}">${w?`${'①②③④'[w-1]} ${esc(st.options[w-1])}`:'—'}</div>
+      ${st.tie?'<div class="mine">🎲 平手！抽籤決定</div>':''}
+      <div class="mine">${mine? (mine===w?'🎉 你投對方向了！':'你投的是 '+'①②③④'[mine-1]) : '這題你沒有投票'}</div>
+      <div class="lbl" style="margin-top:14px">看大螢幕，等下一題…</div></div>`;
+  } else {
+    main.innerHTML = `<div class="wait"><div class="big">🎮</div><b>等待下一題…</b><div>請保持這個頁面開著<br>題目出來時會自動跳出來</div></div>`;
+  }
+}
+
+async function onPick(e){
+  const b=e.target.closest('.opt'); if(!b) return;
+  const c=+b.dataset.c, st=state;
+  if(st.status!=='open' || Date.now()>(st.endsAt||0)+1500) return;
+  const prev=myVote[st.round];
+  myVote[st.round]=c; saveMine();
+  document.getElementById('opts').classList.add('voted');
+  document.querySelectorAll('.opt').forEach(x=>x.classList.toggle('mine', +x.dataset.c===c));
+  const note=document.getElementById('note'); note.className='note'; note.textContent='送出中…';
+  try{ await api.vote(st.round,c); note.textContent=`✅ 已投 ${'①②③④'[c-1]}，時間內可以改投`; if(navigator.vibrate) navigator.vibrate(30); }
+  catch(err){
+    console.error(err);
+    if(prev) myVote[st.round]=prev; else delete myVote[st.round]; saveMine();
+    note.className='note err'; note.textContent='❌ 沒有送出（可能已經截止），請再試一次';
+  }
+}
+
+(async()=>{
+  try{
+    api = await connect();
+    conn.textContent = IS_DEMO ? '🧪 Demo 模式（只限同一台電腦）' : '🟢 已連線';
+    api.onState(st=>{ state=st||{status:'idle'}; render(); }, ()=>{ conn.textContent='⚠️ 連線有問題，請重新整理頁面'; });
+  }catch(e){
+    console.error(e); conn.textContent='⚠️ 連不上投票系統，請重新整理頁面';
+  }
+})();
+</script>
+</body>
+</html>
