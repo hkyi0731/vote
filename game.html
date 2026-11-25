@@ -83,6 +83,16 @@ button{font-family:inherit;cursor:pointer}
 body.touch #pad{display:block}
 #hint{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;z-index:4;background:rgba(12,18,42,.85);border:1px solid var(--gold);border-radius:99px;padding:6px 16px;font-size:clamp(12px,1.4vw,18px);color:var(--gold2);display:none;white-space:nowrap}
 #hint.on{display:block}
+#qrOv .qcard{background:#fff;color:#111;border-radius:14px;padding:16px 22px;display:flex;flex-direction:column;align-items:center;gap:10px;max-height:100%;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#qrBig{width:var(--qs,44vh);max-width:78vw}
+#qrBig img,#qrBig canvas{width:100%!important;height:auto!important;display:block}
+.qsz{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.qsz button{border:1px solid #ccc;background:#f4f4f4;color:#111;border-radius:8px;padding:6px 14px;font-size:15px;font-weight:700}
+.qsz button.on{background:#111;color:#fff;border-color:#111}
+#qrCorner{position:fixed;left:10px;top:50px;z-index:25;background:#fff;border-radius:10px;padding:7px;width:clamp(100px,12vw,160px);display:none;text-align:center;color:#111;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+#qrCorner.on{display:block}
+body.voting #qrCorner{display:none}
+#qrCorner img,#qrCorner canvas{width:100%!important;height:auto!important;display:block;margin-bottom:3px}
 #title{position:fixed;inset:40px 0 0 0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px;
   background:radial-gradient(circle at 50% 35%,#1d2c55 0%,#050812 70%)}
 #title h2{font-size:clamp(32px,6vw,80px);font-weight:900;color:var(--gold2);letter-spacing:4px;text-shadow:0 4px 0 #5a4520}
@@ -147,13 +157,17 @@ body.touch #pad{display:block}
     <button class="gbtn" id="vGo" style="display:none;padding:8px 18px;font-size:16px">繼續 ▶</button></div>
 </div></div>
 
-<!-- QR fullscreen -->
-<div class="ov" id="qrOv" style="z-index:30;background:#fff;color:#111;flex-direction:column;gap:14px;cursor:pointer">
-  <h2 style="font-size:clamp(24px,4vw,48px);font-weight:900">📱 掃描加入投票（不用登入）</h2>
-  <div id="qrBig" style="width:min(62vh,80vw)"></div>
-  <p id="qrUrl" style="font-size:clamp(14px,2vw,22px)"></p>
-  <p style="color:#888">（點任何地方關閉）</p>
+<!-- QR popup -->
+<div class="ov" id="qrOv" style="z-index:30">
+  <div class="qcard">
+    <h2 style="font-size:clamp(20px,3vw,36px);font-weight:900">📱 掃描加入投票（不用登入）</h2>
+    <div id="qrBig"></div>
+    <p id="qrUrl" style="font-size:clamp(12px,1.4vw,17px);color:#555;word-break:break-all;text-align:center;max-width:70vw"></p>
+    <div class="qsz"><span style="align-self:center;color:#666;font-weight:700">大小：</span><button data-s="26vh">小</button><button data-s="44vh">中</button><button data-s="68vh">大</button></div>
+    <div class="qsz"><button id="qrPin">📌 縮小到角落</button><button id="qrClose">✕ 關閉</button></div>
+  </div>
 </div>
+<div id="qrCorner" title="點一下收起來"><div id="qrSmall"></div>📱 掃碼投票</div>
 
 <!-- end -->
 <div class="ov" id="endOv"><div class="card" style="text-align:center">
@@ -198,8 +212,15 @@ $('fsBtn').onclick=()=>{ try{ document.fullscreenElement? document.exitFullscree
 /* =================== QR =================== */
 const voteUrl = new URL('index.html', location.href).href;
 function makeQR(el,size){ el.innerHTML=''; try{ new QRCode(el,{text:voteUrl,width:size,height:size,correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent=voteUrl; } }
-function showQR(){ makeQR($('qrBig'),800); $('qrUrl').textContent=voteUrl; $('qrOv').classList.add('on'); }
-$('qrBtn').onclick=showQR; $('qrBtn2').onclick=showQR; $('qrOv').onclick=()=>$('qrOv').classList.remove('on');
+function showQR(){ makeQR($('qrBig'),600); $('qrUrl').textContent=voteUrl; $('qrOv').classList.add('on'); }
+$('qrBtn').onclick=showQR; $('qrBtn2').onclick=showQR;
+$('qrOv').onclick=e=>{ if(e.target.id==='qrOv') $('qrOv').classList.remove('on'); };
+$('qrClose').onclick=()=>$('qrOv').classList.remove('on');
+function setQrSize(v){ $('qrBig').style.setProperty('--qs',v); document.querySelectorAll('.qsz button[data-s]').forEach(x=>x.classList.toggle('on',x.dataset.s===v)); }
+document.querySelectorAll('.qsz button[data-s]').forEach(b=>b.onclick=()=>{ setQrSize(b.dataset.s); try{ localStorage.setItem('ane_qr_size',b.dataset.s); }catch(e){} });
+{ let sv='44vh'; try{ sv=localStorage.getItem('ane_qr_size')||sv; }catch(e){} setQrSize(sv); }
+$('qrPin').onclick=()=>{ $('qrOv').classList.remove('on'); makeQR($('qrSmall'),300); $('qrCorner').classList.add('on'); };
+$('qrCorner').onclick=()=>$('qrCorner').classList.remove('on');
 
 /* =================== MAP =================== */
 const T=16, COLS=20, ROWS=12, VW=COLS*T, VH=ROWS*T;
@@ -503,7 +524,7 @@ function vote({title,kind='dir',options,answer=null,seconds=30}){
       $('vTotal').textContent= online? `共 ${tot} 票` : '';
     }
     paint();
-    ov.classList.add('on');
+    ov.classList.add('on'); document.body.classList.add('voting');
     let lastSec=-1;
     const iv=setInterval(()=>{
       const left=Math.max(0,endsAt-Date.now()); const s=Math.ceil(left/1000);
@@ -530,7 +551,7 @@ function vote({title,kind='dir',options,answer=null,seconds=30}){
       if(answer) msg += answer===win ? '　🎉 答對了！' : `　😱 正解是 ${'①②③④'[answer-1]}`;
       $('vReveal').style.color = answer && answer!==win ? '#ff9f9f' : '#3ef08a';
       $('vReveal').textContent=msg; $('vGo').style.display='';
-      $('vGo').onclick=async()=>{ ov.classList.remove('on'); if(online){ try{ await api.setState({status:'idle'}); }catch(e){} } res(win); };
+      $('vGo').onclick=async()=>{ ov.classList.remove('on'); document.body.classList.remove('voting'); if(online){ try{ await api.setState({status:'idle'}); }catch(e){} } res(win); };
     }
   });
 }
