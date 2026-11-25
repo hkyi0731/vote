@@ -130,6 +130,7 @@ body.voting #qrCorner{display:none}
     <button class="gbtn" id="startBtn">▶ 開始值班</button>
     <button class="gbtn ghost" id="qrBtn2">📱 先讓大家掃 QR code</button>
   </div>
+  <p id="lockMsg" style="display:none;font-size:clamp(14px,1.6vw,20px);color:#ffd9b0;background:rgba(255,159,67,.12);border:1px solid #ff9f43;border-radius:10px;padding:10px 16px">🔒 這個畫面是主持人專用，要用主持人的 Gmail 登入後才能開始。<br>觀眾請用手機掃 QR code 投票就好。</p>
   <p style="font-size:14px;color:#7f8aa8">操作：方向鍵／WASD 走路・空白鍵或 Enter 對話下一句・手機或平板會出現十字鍵</p>
 </div>
 
@@ -190,7 +191,14 @@ try{
 }catch(e){ console.warn('投票系統未連線，改用主持人手動選',e); api=null; }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function gateOK(){ return !api || api.mode!=='firebase' || api.isHost(); }
+function updateGate(){
+  const b=$('startBtn'); if(!b) return;
+  if(gateOK()){ b.textContent='▶ 開始值班'; $('lockMsg').style.display='none'; }
+  else { b.textContent='🔒 主持人登入後開始'; $('lockMsg').style.display=''; }
+}
 function updateNet(){
+  updateGate();
   const c=$('netChip'), lb=$('loginBtn');
   if(!api){ c.className='chip warn'; c.textContent='⚠️ 投票離線：主持人手動選'; lb.style.display='none'; return; }
   if(api.mode==='demo'){ c.className='chip demo'; c.textContent='🧪 Demo 投票（同一台電腦）'; lb.style.display='none'; return; }
@@ -633,7 +641,9 @@ function restart(){
   Object.assign(P,{r:2,c:3,fr:2,fc:3,t:1,dir:'down',moving:false}); autoPath=null; held=null;
   setupStory(); run(intro);
 }
-$('startBtn').onclick=()=>{ $('title').style.display='none'; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} restart(); };
+$('startBtn').onclick=async()=>{
+  if(!gateOK()){ try{ await api.signIn(); }catch(e){ showHint('登入失敗：'+e.message,4000); } updateNet(); if(!gateOK()){ showHint('這個帳號不是主持人帳號，無法開始',4000); return; } }
+  $('title').style.display='none'; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} restart(); };
 
 /* =================== LOOP =================== */
 let last=performance.now();
