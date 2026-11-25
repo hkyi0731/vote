@@ -93,6 +93,23 @@ body.touch #pad{display:block}
 #qrCorner.on{display:block}
 body.voting #qrCorner{display:none}
 #qrCorner img,#qrCorner canvas{width:100%!important;height:auto!important;display:block;margin-bottom:3px}
+#vitals{position:fixed;top:50px;right:10px;z-index:15;width:clamp(175px,19vw,290px);background:#000;border:3px solid #263241;border-radius:10px;padding:6px 9px;display:none;font-family:"JetBrains Mono",monospace;box-shadow:0 6px 20px rgba(0,0,0,.6)}
+#vitals.on{display:block}
+#vitals.alarm{animation:valarm .8s infinite}
+@keyframes valarm{50%{border-color:#ff4d5e;box-shadow:0 0 26px rgba(255,77,94,.7)}}
+#vitals .vh{font-family:"Noto Sans TC",sans-serif;font-size:12px;color:#8a99a8;display:flex;justify-content:space-between;font-weight:700}
+#vitals .vh #vAlarm{color:#ff6b78}
+#vitals canvas{width:100%;height:40px;display:block}
+.vg{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}
+.vn i{display:block;font-style:normal;font-size:11px;opacity:.8;font-family:"Noto Sans TC",sans-serif}
+.vn b{font-size:clamp(20px,2.5vw,36px);line-height:1.05;font-weight:800}
+.vn.hr{color:#3ef08a}.vn.sp{color:#3fd6f2}.vn.bp{color:#fff}.vn.co{color:#ffd23f}
+.vn.bad b{animation:blink .6s infinite}
+.vent{margin-top:5px;border-top:1px solid #263241;padding-top:4px;font-size:11px;color:#9aa8c0;font-family:"Noto Sans TC",sans-serif;display:flex;flex-wrap:wrap;gap:2px 8px}
+.vent b{color:#fff;font-family:"JetBrains Mono",monospace}
+.vent b.chg{color:#3ef08a}
+body.vitals .ov{justify-content:flex-start}
+body.vitals .ov .card{width:calc(100% - clamp(190px,21vw,310px))}
 #title{position:fixed;inset:40px 0 0 0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px;
   background:radial-gradient(circle at 50% 35%,#1d2c55 0%,#050812 70%)}
 #title h2{font-size:clamp(32px,6vw,80px);font-weight:900;color:var(--gold2);letter-spacing:4px;text-shadow:0 4px 0 #5a4520}
@@ -115,6 +132,17 @@ body.voting #qrCorner{display:none}
   <div class="dlg" id="dlg"><canvas id="pt" width="32" height="32"></canvas><div><div class="nm" id="dlgN"></div><div class="tt" id="dlgT"></div></div><div class="nx">▼</div></div>
 </div></div>
 <div id="hint"></div>
+<div id="vitals">
+  <div class="vh"><span>🖥️ 病人 Monitor</span><span id="vAlarm"></span></div>
+  <canvas id="ecg" width="220" height="40"></canvas>
+  <div class="vg">
+    <div class="vn hr" id="vHRb"><i>HR</i><b id="vHR">--</b></div>
+    <div class="vn sp" id="vSpb"><i>SpO₂ %</i><b id="vSp">--</b></div>
+    <div class="vn bp" id="vBPb"><i>NIBP</i><b id="vBP">--</b></div>
+    <div class="vn co" id="vCOb"><i>EtCO₂</i><b id="vCO">--</b></div>
+  </div>
+  <div class="vent" id="vVent"></div>
+</div>
 
 <div id="pad">
   <button class="u" data-d="up">▲</button><button class="l" data-d="left">◀</button>
@@ -141,7 +169,7 @@ body.voting #qrCorner{display:none}
   <div class="roles" id="skitRoles"></div>
   <div class="cue" id="skitCue"></div>
   <div class="crowd" id="skitCrowd" style="display:none"></div>
-  <div class="row"><button class="gbtn" id="skitGo">✅ 演完了，繼續</button></div>
+  <div class="row"><button class="gbtn" id="skitGo">✅ 問題解除！</button></div>
 </div></div>
 
 <!-- vote -->
@@ -495,9 +523,9 @@ function showHint(t,ms){ const h=$('hint'); clearTimeout(hintT); if(!t){ h.class
 
 /* =================== SKIT =================== */
 let skitOpenedAt=0;
-function skit({scene,roles,cue,crowd}){
+function skit({scene,roles,cue,crowd,done}){
   return new Promise(res=>{
-    $('skitScene').textContent=scene;
+    $('skitScene').textContent=scene; $('skitGo').textContent=done||'✅ 問題解除！';
     $('skitRoles').innerHTML=roles.map(([r,d])=>`<div class="role"><b>${esc(r)}</b>　${esc(d)}</div>`).join('');
     $('skitCue').textContent=cue;
     $('skitCrowd').style.display=crowd?'':'none'; $('skitCrowd').textContent=crowd?('📣 全場一起喊：'+crowd):'';
@@ -566,9 +594,15 @@ function vote({title,kind='dir',options,answer=null,seconds=30}){
 
 /* =================== STORY（範例劇情，之後換成你的劇本） =================== */
 let junctionTrig=null;
+const ROUTES=[
+  {id:'or',   label:'往 OR 開刀房', place:'開刀房', fn:()=>routeOR(),    back:[5,10]},
+  {id:'pacu', label:'往恢復室',     place:'恢復室', fn:()=>routePACU(),  back:[6,6]},
+  {id:'blood',label:'往血庫',       place:'血庫',   fn:()=>routeBlood(), back:[6,14]},
+  {id:'sleep',label:'回值班室繼續睡',place:'值班室', fn:()=>routeSleep(), back:[5,3]},
+];
+let doneRoutes=new Set();
 function setupStory(){
   TRIG.length=0;
-  // 1) 走出值班室到走廊 → 投票去哪
   junctionTrig = { done:false, once:true, area:(r,c)=>r===5||r===6, fn:junctionVote };
   TRIG.push(junctionTrig);
 }
@@ -582,42 +616,86 @@ async function intro(){
 }
 async function junctionVote(){
   showHint('');
-  bubble('me','?',1.2); await wait(800);
-  await say('me','走廊上……好幾個地方都在叫我。要先去哪裡呢？');
-  const choice = await vote({title:'學長被 call 了！要先去哪裡？',kind:'dir',options:['往 OR 開刀房','往恢復室','往血庫','回值班室繼續睡'],seconds:30});
-  const routes={1:routeOR,2:routePACU,3:routeBlood,4:routeSleep};
-  await routes[choice]();
+  let first=true;
+  while(true){
+    const avail=ROUTES.filter(r=>!doneRoutes.has(r.id));
+    const real=avail.filter(r=>r.id!=='sleep');
+    if(!real.length) return finale();
+    let pick;
+    if(avail.length===1){
+      pick=avail[0];
+      await say('me',`只剩${pick.place}還沒去了，走吧！`);
+    }else{
+      if(first){ bubble('me','?',1.2); await wait(800); await say('me','走廊上……好幾個地方都在叫我。要先去哪裡呢？'); }
+      const c=await vote({title: first?'學長被 call 了！要先去哪裡？':'下一站要去哪裡？',kind:'dir',options:avail.map(r=>r.label),seconds:30});
+      pick=avail[c-1];
+    }
+    first=false;
+    doneRoutes.add(pick.id);          // 選過就從選項移除
+    await pick.fn();
+    if(pick.id==='sleep') return;     // 被主治抓包，要自己再走出去
+    const left=ROUTES.filter(r=>!doneRoutes.has(r.id)&&r.id!=='sleep');
+    if(!left.length) return finale();
+    await phoneCall(left);
+    await walkTo(pick.back[0],pick.back[1]);
+  }
 }
-async function exclaim(id){ const n=NPCS.find(x=>x.id===id); bubble(id,'!',1.0); beep(1318,.08,.06); await wait(160); beep(1568,.12,.06); await wait(850); }
+async function phoneCall(left){
+  await wait(500); ringing=true; beep(1200,.08); await wait(160); beep(1200,.08); await wait(160); beep(1200,.08);
+  bubble('me','!',1.0); await wait(700);
+  await talk([['phone','（才剛處理完……值班手機又響了）'],['junior',`學長！${left.map(r=>r.place).join('跟')}那邊也在找你！`],['me','好啦好啦，我馬上過去！']]);
+  ringing=false;
+}
+async function exclaim(id){ bubble(id,'!',1.0); beep(1318,.08,.06); await wait(160); beep(1568,.12,.06); await wait(850); }
+
 async function routeOR(){
   await walkTo(3,10); face('right');
   await exclaim('surgeon');
   await talk([['surgeon','麻醉！你來得正好～'],['surgeon','我們再 10 分鐘就好了！可以先叫下一台病人嗎？'],['me','（這句話我今晚已經聽第三次了……）']]);
   await skit({scene:'📍 OR 開刀房｜凌晨 2:20',roles:[['外科醫師','堅持「快好了」'],['麻醉住院醫師','你'],['流動護理師','偷偷看時鐘']],
-    cue:'外科：「再 10 分鐘就好！」\n麻醉：「學長，你兩個小時前也是這樣說……」\n護理師：（默默把下一台的病人推回病房）',crowd:'「快好了～～～！」'});
+    cue:'外科：「再 10 分鐘就好！」\n麻醉：「學長，你兩個小時前也是這樣說……」\n護理師：（默默把下一台的病人推回病房）',crowd:'「快好了～～～！」',
+    done:'✅ 外科答應縫快一點了'});
   const a=await vote({title:'外科說「快好了」，實際上還要多久？',kind:'quiz',options:['5 分鐘','30 分鐘','2 小時','天亮交班後'],answer:4,seconds:20});
   await talk([['me',a===4?'全場都懂……麻醉科的默契。':'太天真了，正解是「天亮交班後」。'],['surgeon','（擦汗）好啦好啦，我縫快一點。']]);
-  await ending('OR 路線完成！');
+
+  // ---- 危急事件：生命徵象即時惡化 ----
+  await wait(500);
+  vitalsShow({hr:84,sbp:118,spo2:98,etco2:36},{mode:'VC',fio2:50,peep:5,vt:450,rr:12});
+  vitalsDrift({spo2:-0.6,hr:0.7,sbp:-0.25,etco2:0.08});
+  bubble('me','!',1.0); beep(880,.15,.06);
+  await talk([['surgeon','欸？麻醉，那台機器在叫什麼？'],['me','SpO₂ 在掉！']]);
+  const b=await vote({title:'病人 SpO₂ 一直往下掉！第一步要做什麼？',kind:'quiz',
+    options:['FiO₂ 調 100%、改手動通氣','把警報音量關小','先等外科縫完再說','把 FiO₂ 調低省氧氣'],answer:1,seconds:20});
+  if(b===1){
+    vent({fio2:100,mode:'手動'}); vitalsRecover({spo2:99,hr:82,sbp:118,etco2:37},5);
+    await talk([['me','100% O₂、手動通氣……肺不難擠，管子位置也 OK。'],['me','SpO₂ 回來了……呼～']]);
+  }else{
+    vitalsDrift({spo2:-1.8,hr:1.6,sbp:-0.9,etco2:0.2});
+    await talk([['surgeon','欸欸欸，數字越來越紅了啦！'],['junior','學長！先給 100% O₂、手動通氣啦！']]);
+    vent({fio2:100,mode:'手動'}); vitalsRecover({spo2:98,hr:86,sbp:114,etco2:38},7);
+    await talk([['me','好險……SpO₂ 慢慢回來了。下次第一步就是 100% O₂！']]);
+  }
+  await wait(1500); vitalsHide();
 }
 async function routePACU(){
   await walkTo(8,6); face('down');
   await exclaim('nurse');
   await talk([['nurse','學長！剛出刀的阿伯一直發抖，說他好冷……'],['me','我看看。']]);
   await skit({scene:'📍 恢復室｜凌晨 2:25',roles:[['恢復室護理師','很擔心'],['阿伯（病人）','抖到床在晃'],['麻醉住院醫師','你']],
-    cue:'阿伯：「醫…醫生…我…是不是…要…升天了…」\n護理師：「學長，他已經蓋三條被子了！」\n麻醉：「先別急，我們來想想原因……」'});
+    cue:'阿伯：「醫…醫生…我…是不是…要…升天了…」\n護理師：「學長，他已經蓋三條被子了！」\n麻醉：「先別急，我們來想想原因……」',
+    done:'✅ 先幫阿伯蓋好加溫毯了'});
   const a=await vote({title:'術後在恢復室發抖，最常見的原因是？',kind:'quiz',options:['低體溫','過敏反應','惡性高熱','太想家'],answer:1,seconds:20});
-  await talk([['me',a===1?'沒錯，先保溫、加溫毯，再評估要不要給藥。':'最常見的是低體溫！先保溫、加溫毯。'],['nurse','加溫毯來了！阿伯不抖了～']]);
-  await ending('恢復室路線完成！');
+  await talk([['me',a===1?'沒錯，先保溫、加溫毯，再評估要不要給藥。':'最常見的是低體溫！先保溫、加溫毯。'],['nurse','阿伯不抖了～謝謝學長！']]);
 }
 async function routeBlood(){
   await walkTo(8,14); face('down');
   await exclaim('blood');
   await talk([['blood','要叫血嗎？備血單第三頁還沒簽名喔～'],['me','病人在大出血，可以先發嗎！？']]);
   await skit({scene:'📍 血庫窗口｜凌晨 2:30',roles:[['血庫醫檢師','堅守流程'],['麻醉住院醫師','跑到喘不過氣'],['旁白','計時中']],
-    cue:'醫檢師：「單子沒填完，我不能發喔～」\n麻醉：（邊喘邊簽名）「簽…簽好了…」\n醫檢師：「好，那你要什麼血型？」',crowd:'「快一點！快一點！」'});
+    cue:'醫檢師：「單子沒填完，我不能發喔～」\n麻醉：（邊喘邊簽名）「簽…簽好了…」\n醫檢師：「好，那你要什麼血型？」',crowd:'「快一點！快一點！」',
+    done:'✅ 單子終於簽好了'});
   const a=await vote({title:'緊急輸血、還不知道血型時，紅血球先給什麼血型？',kind:'quiz',options:['O 型','A 型','B 型','AB 型'],answer:1,seconds:20});
   await talk([['blood',a===1?'O 型，答對了！拿去～':'是 O 型喔！拿去～'],['me','謝謝！我衝回去了！']]);
-  await ending('血庫路線完成！');
 }
 async function routeSleep(){
   await walkTo(2,1); face('up');
@@ -625,20 +703,60 @@ async function routeSleep(){
   ringing=true; beep(1200,.08); await wait(160); beep(1200,.08);
   await talk([['attending','你在睡覺嗎？（已讀）'],['me','（嚇醒）沒、沒有！我馬上出去！']]);
   ringing=false;
-  junctionTrig.done=false; // 再走到走廊會重新投票
+  junctionTrig.done=false; // 再走到走廊會重新投票（「繼續睡」已經不能再選）
   showHint('被抓包了……再走出去一次吧 ⬇️',4000);
 }
-async function ending(t){
+async function finale(){
+  await wait(400);
+  await talk([['junior','學長……天亮了耶。'],['me','終於……可以交班了。']]);
   return new Promise(res=>{
-    $('endT').textContent='🎉 '+t; $('endS').textContent='這是試玩版的範例劇情。正式版會換成你的劇本：更多場景、❗NPC、演出段落和投票。';
-    $('endOv').classList.add('on');
-    $('endAgain').onclick=async()=>{ $('endOv').classList.remove('on'); res(); await walkTo(5,10); junctionTrig.done=false; mode='walk'; onArrive(); };
-    $('endRestart').onclick=()=>{ $('endOv').classList.remove('on'); res(); restart(); };
+    $('endT').textContent='🌅 天亮了，交班！'; $('endS').textContent='每個地方都處理完了。（試玩版結束，正式版會換成你的劇本）';
+    $('endAgain').style.display='none'; $('endOv').classList.add('on');
+    $('endRestart').onclick=()=>{ $('endOv').classList.remove('on'); res(); setTimeout(restart,60); };
   });
+}
+/* =================== VITALS HUD（即時生命徵象） =================== */
+const VIT={on:false,v:{hr:80,sbp:120,dbp:70,spo2:99,etco2:36},drift:{},target:null,rate:.2,vent:{mode:'VC',fio2:50,peep:5,vt:450,rr:12},ph:0,x:0,prev:null,lastBeep:0,changed:{}};
+function vitalsShow(init,vt){ Object.assign(VIT.v,init); VIT.v.dbp=VIT.v.sbp*.58; if(vt) Object.assign(VIT.vent,vt); VIT.changed={}; VIT.drift={}; VIT.target=null; VIT.on=true;
+  document.body.classList.add('vitals'); $('vitals').classList.add('on'); paintVent(); const c=$('ecg'); c.getContext('2d').clearRect(0,0,c.width,c.height); VIT.x=0; VIT.prev=null; }
+function vitalsHide(){ VIT.on=false; document.body.classList.remove('vitals'); $('vitals').classList.remove('on','alarm'); }
+function vitalsDrift(d){ VIT.drift=d; VIT.target=null; }
+function vitalsRecover(tg,secs){ VIT.target=tg; VIT.rate=1/secs; VIT.drift={}; }
+function vent(p){ for(const k in p) if(VIT.vent[k]!==p[k]) VIT.changed[k]=true; Object.assign(VIT.vent,p); paintVent(); }
+function paintVent(){
+  const v=VIT.vent, c=VIT.changed, f=(k,lb,u='')=>`<span>${lb} <b class="${c[k]?'chg':''}">${v[k]}${u}</b></span>`;
+  $('vVent').innerHTML=`<span>🫁 呼吸器</span>${f('mode','Mode')}${f('fio2','FiO₂','%')}${f('peep','PEEP')}${f('vt','Vt')}${f('rr','RR')}`;
+}
+function ecgVal(p){ const gs=(x,m,s)=>Math.exp(-((x-m)**2)/(2*s*s)); return .12*gs(p,.12,.025)-.12*gs(p,.2,.008)+gs(p,.22,.01)-.25*gs(p,.245,.01)+.25*gs(p,.45,.045); }
+function vitalsTick(dt){
+  if(!VIT.on) return;
+  const v=VIT.v;
+  for(const k in VIT.drift) v[k]+=VIT.drift[k]*dt;
+  if(VIT.target) for(const k in VIT.target) v[k]+=(VIT.target[k]-v[k])*Math.min(1,dt*VIT.rate*2.5);
+  v.spo2=Math.max(62,Math.min(100,v.spo2)); v.hr=Math.max(35,Math.min(180,v.hr)); v.sbp=Math.max(50,Math.min(200,v.sbp)); v.etco2=Math.max(10,Math.min(80,v.etco2)); v.dbp=v.sbp*.58;
+  const bad={hr:v.hr>110||v.hr<50, sp:v.spo2<92, bp:v.sbp<90, co:v.etco2>48};
+  $('vHR').textContent=Math.round(v.hr); $('vSp').textContent=Math.round(v.spo2); $('vBP').textContent=`${Math.round(v.sbp)}/${Math.round(v.dbp)}`; $('vCO').textContent=Math.round(v.etco2);
+  $('vHRb').classList.toggle('bad',bad.hr); $('vSpb').classList.toggle('bad',bad.sp); $('vBPb').classList.toggle('bad',bad.bp); $('vCOb').classList.toggle('bad',bad.co);
+  const alarm = bad.hr||bad.sp||bad.bp;
+  $('vitals').classList.toggle('alarm',alarm);
+  $('vAlarm').textContent = v.spo2<85 ? '🚨 危急' : alarm ? '⚠️ 警報' : '';
+  const now=performance.now()/1000;
+  if(alarm && now-VIT.lastBeep > (v.spo2<85?.7:1.2)){ VIT.lastBeep=now; beep(v.spo2<85?560:740,.14,.04,'sine'); }
+  // ECG sweep
+  const c=$('ecg'), g2=c.getContext('2d'), W=c.width, H=c.height, sub=3;
+  for(let i=0;i<sub;i++){
+    const d=dt/sub; VIT.ph=(VIT.ph+d*v.hr/60)%1;
+    const y=H*.8-ecgVal(VIT.ph)*H*.65, nx=VIT.x+110*d;
+    g2.clearRect(VIT.x+1,0,10,H);
+    if(nx>W){ VIT.x=0; VIT.prev=null; continue; }
+    if(VIT.prev!=null){ g2.strokeStyle='#3ef08a'; g2.lineWidth=1.6; g2.beginPath(); g2.moveTo(VIT.x,VIT.prev); g2.lineTo(nx,y); g2.stroke(); }
+    VIT.x=nx; VIT.prev=y;
+  }
 }
 function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function restart(){
   Object.assign(P,{r:2,c:3,fr:2,fc:3,t:1,dir:'down',moving:false}); autoPath=null; held=null;
+  doneRoutes=new Set(); vitalsHide();
   setupStory(); run(intro);
 }
 $('startBtn').onclick=async()=>{
@@ -649,7 +767,7 @@ $('startBtn').onclick=async()=>{
 let last=performance.now();
 function loop(now){
   const dt=Math.min(.05,(now-last)/1000); last=now; t+=dt;
-  update(dt); dlgTick(dt); render();
+  update(dt); dlgTick(dt); vitalsTick(dt); render();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
