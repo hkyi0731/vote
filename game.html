@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>麻醉科值班夜・試玩版</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--gold:#c9a55a;--gold2:#f3cf6b;--ink:#0c1228}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;overflow:hidden}
+body{color:#f2f2f2;font-family:"Noto Sans TC",system-ui,sans-serif;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;cursor:pointer}
+#top{position:fixed;top:0;left:0;right:0;height:40px;display:flex;align-items:center;gap:8px;padding:0 10px;background:linear-gradient(#141d33,#0a1020);border-bottom:2px solid var(--gold);z-index:20}
+#top h1{font-size:16px;font-weight:900;color:var(--gold2);letter-spacing:1px;white-space:nowrap}
+#top .sp{flex:1}
+.chip{font-size:12px;border:1px solid #3a4766;border-radius:99px;padding:3px 10px;white-space:nowrap;background:#0f1730}
+.chip.ok{border-color:#3ef08a;color:#c5f7da}.chip.warn{border-color:#ff9f43;color:#ffd9b0}.chip.demo{border-color:#b38cff;color:#ddd0ff}
+.tbtn{background:#1b2747;border:1px solid #3a4766;color:#fff;border-radius:8px;padding:4px 10px;font-size:13px;white-space:nowrap}
+#stage{position:fixed;top:40px;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center}
+#wrap{position:relative}
+#wrap>canvas{position:absolute;inset:0;width:100%;height:100%}
+#cv{image-rendering:pixelated;image-rendering:crisp-edges}
+#tx{pointer-events:none}
+
+/* dialog */
+.dlg{position:absolute;left:2%;right:2%;bottom:3%;display:none;gap:12px;align-items:flex-start;padding:12px 16px 14px;z-index:5;cursor:pointer;
+  background:linear-gradient(180deg,rgba(30,44,82,.97),rgba(12,18,42,.97));border:3px solid var(--gold);border-radius:6px;box-shadow:inset 0 0 0 3px #070b1a,0 6px 20px rgba(0,0,0,.6)}
+.dlg.on{display:flex}
+.dlg canvas{width:clamp(48px,7vw,84px);height:clamp(48px,7vw,84px);image-rendering:pixelated;border:2px solid var(--gold);background:#0a0f22;flex:none;position:static}
+.dlg .nm{color:var(--gold2);font-weight:900;font-size:clamp(14px,1.6vw,22px);margin-bottom:4px;letter-spacing:1px}
+.dlg .tt{font-size:clamp(16px,2vw,28px);line-height:1.5;min-height:3em}
+.dlg .nx{position:absolute;right:14px;bottom:8px;color:var(--gold2);animation:blink 1s infinite;font-size:14px}
+@keyframes blink{50%{opacity:.2}}
+
+/* overlay cards */
+.ov{position:fixed;inset:40px 0 0 0;display:none;align-items:center;justify-content:center;z-index:10;background:rgba(3,6,16,.72);padding:16px}
+.ov.on{display:flex}
+.card{width:min(1100px,100%);max-height:100%;overflow:auto;background:linear-gradient(180deg,#1e2c52,#0c1228);border:3px solid var(--gold);border-radius:8px;
+  box-shadow:inset 0 0 0 3px #070b1a,0 10px 40px rgba(0,0,0,.6);padding:clamp(14px,2.5vw,32px)}
+.card h2{color:var(--gold2);font-size:clamp(20px,3vw,40px);font-weight:900;letter-spacing:2px;margin-bottom:8px}
+.card .sub{color:#b9c4dd;font-size:clamp(14px,1.6vw,22px);margin-bottom:14px;line-height:1.6}
+.gbtn{background:linear-gradient(#f3cf6b,#c9a55a);color:#1a1205;border:none;border-radius:8px;padding:12px 24px;font-size:clamp(16px,1.8vw,24px);font-weight:900;box-shadow:0 4px 0 #7a6230}
+.gbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #7a6230}
+.gbtn.ghost{background:transparent;color:var(--gold2);border:2px solid var(--gold);box-shadow:none}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:16px}
+
+/* skit */
+.skit .roles{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 14px}
+.skit .role{background:#0a1124;border:1px solid #3a4766;border-radius:8px;padding:8px 14px;font-size:clamp(15px,1.7vw,22px)}
+.skit .role b{color:var(--gold2)}
+.skit .cue{background:#0a1124;border-left:5px solid var(--gold);border-radius:6px;padding:12px 16px;font-size:clamp(16px,1.9vw,26px);line-height:1.8;white-space:pre-line}
+.skit .crowd{margin-top:12px;background:rgba(255,77,94,.15);border:2px dashed #ff4d5e;border-radius:8px;padding:10px 14px;font-size:clamp(18px,2.2vw,30px);font-weight:900;color:#ffd0d6;text-align:center}
+
+/* vote */
+.vote .head{display:flex;align-items:flex-start;gap:20px}
+.vote .head .q{flex:1}
+.vote .qr{background:#fff;padding:8px;border-radius:8px;width:clamp(90px,11vw,150px);flex:none;text-align:center;color:#111;font-size:11px;line-height:1.3}
+.vote .qr img,.vote .qr canvas{width:100%!important;height:auto!important;display:block}
+.vote .cd{font-family:"JetBrains Mono",monospace;font-weight:800;color:#ffd23f;font-size:clamp(40px,6vw,88px);line-height:1;text-align:right}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.opt{position:relative;border-radius:10px;overflow:hidden;background:#0a1124;border:2px solid #2b3658;min-height:clamp(64px,9vh,110px);display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer}
+.opt .fill{position:absolute;left:0;top:0;bottom:0;width:0;opacity:.85;transition:width .4s}
+.opt .n,.opt .lb,.opt .ct{position:relative;z-index:1}
+.opt .n{font-size:clamp(28px,3.6vw,52px);font-weight:900}
+.opt .lb{flex:1;font-size:clamp(17px,2.1vw,30px);font-weight:900}
+.opt .ct{font-family:"JetBrains Mono",monospace;font-size:clamp(15px,1.7vw,24px);text-align:right}
+.f1{background:#e0414f}.f2{background:#2f7de1}.f3{background:#d9a31a}.f4{background:#27a361}
+.opt.win{border-color:#fff;box-shadow:0 0 0 4px #fff,0 0 30px rgba(255,255,255,.5)}
+.opt.lose{opacity:.45}
+.opt.correct::after{content:"✔ 正解";position:absolute;right:10px;top:6px;z-index:2;background:#fff;color:#0a7a3a;font-weight:900;border-radius:6px;padding:2px 8px;font-size:14px}
+.vote .foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;color:#b9c4dd;font-size:clamp(13px,1.4vw,18px)}
+.vote .total{font-weight:900;color:#fff}
+.reveal{margin-top:12px;font-size:clamp(20px,2.6vw,36px);font-weight:900;color:#3ef08a;min-height:1.4em}
+
+/* d-pad */
+#pad{position:fixed;right:14px;bottom:14px;width:150px;height:150px;z-index:6;display:none}
+#pad button{position:absolute;width:50px;height:50px;border-radius:10px;border:2px solid var(--gold);background:rgba(12,18,42,.75);color:var(--gold2);font-size:22px;font-weight:900}
+#pad .u{left:50px;top:0}#pad .d{left:50px;top:100px}#pad .l{left:0;top:50px}#pad .r{left:100px;top:50px}
+#pad .a{left:50px;top:50px;font-size:14px}
+body.touch #pad{display:block}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;z-index:4;background:rgba(12,18,42,.85);border:1px solid var(--gold);border-radius:99px;padding:6px 16px;font-size:clamp(12px,1.4vw,18px);color:var(--gold2);display:none;white-space:nowrap}
+#hint.on{display:block}
+#title{position:fixed;inset:40px 0 0 0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px;
+  background:radial-gradient(circle at 50% 35%,#1d2c55 0%,#050812 70%)}
+#title h2{font-size:clamp(32px,6vw,80px);font-weight:900;color:var(--gold2);letter-spacing:4px;text-shadow:0 4px 0 #5a4520}
+#title p{color:#b9c4dd;font-size:clamp(14px,1.8vw,22px);line-height:1.8;max-width:900px}
+</style>
+</head>
+<body>
+<div id="top">
+  <h1>🌙 麻醉科值班夜・試玩版</h1>
+  <div class="sp"></div>
+  <span class="chip" id="netChip">投票系統連線中…</span>
+  <button class="tbtn" id="loginBtn" style="display:none">主持人登入</button>
+  <button class="tbtn" id="qrBtn">📱 QR</button>
+  <button class="tbtn" id="sndBtn">🔊</button>
+  <button class="tbtn" id="fsBtn">⛶</button>
+</div>
+
+<div id="stage"><div id="wrap">
+  <canvas id="cv"></canvas><canvas id="tx"></canvas>
+  <div class="dlg" id="dlg"><canvas id="pt" width="32" height="32"></canvas><div><div class="nm" id="dlgN"></div><div class="tt" id="dlgT"></div></div><div class="nx">▼</div></div>
+</div></div>
+<div id="hint"></div>
+
+<div id="pad">
+  <button class="u" data-d="up">▲</button><button class="l" data-d="left">◀</button>
+  <button class="a" data-d="ok">OK</button>
+  <button class="r" data-d="right">▶</button><button class="d" data-d="down">▼</button>
+</div>
+
+<!-- title -->
+<div id="title">
+  <h2>麻醉科值班夜</h2>
+  <p>你是今晚值班的麻醉科住院醫師。<br>在醫院裡走動、遇到 <b style="color:#ff4d5e">❗</b> 的 NPC 就停下來看戲；<br>遇到岔路，<b style="color:#3ef08a">全場用手機投票</b>決定下一步。</p>
+  <div class="row" style="justify-content:center">
+    <button class="gbtn" id="startBtn">▶ 開始值班</button>
+    <button class="gbtn ghost" id="qrBtn2">📱 先讓大家掃 QR code</button>
+  </div>
+  <p style="font-size:14px;color:#7f8aa8">操作：方向鍵／WASD 走路・空白鍵或 Enter 對話下一句・手機或平板會出現十字鍵</p>
+</div>
+
+<!-- skit -->
+<div class="ov" id="skitOv"><div class="card skit">
+  <h2>🎭 演出時間</h2>
+  <div class="sub" id="skitScene"></div>
+  <div class="roles" id="skitRoles"></div>
+  <div class="cue" id="skitCue"></div>
+  <div class="crowd" id="skitCrowd" style="display:none"></div>
+  <div class="row"><button class="gbtn" id="skitGo">✅ 演完了，繼續</button></div>
+</div></div>
+
+<!-- vote -->
+<div class="ov" id="voteOv"><div class="card vote">
+  <div class="head">
+    <div class="q"><div class="sub" id="vKind"></div><h2 id="vTitle" style="letter-spacing:1px"></h2></div>
+    <div class="cd" id="vCd">30</div>
+    <div class="qr"><div id="vQr"></div>掃碼投票</div>
+  </div>
+  <div class="opts" id="vOpts"></div>
+  <div class="reveal" id="vReveal"></div>
+  <div class="foot"><span class="total" id="vTotal"></span><span id="vNote"></span><span style="flex:1"></span>
+    <button class="gbtn ghost" id="vEnd" style="padding:8px 16px;font-size:16px">⏹ 提早結束</button>
+    <button class="gbtn" id="vGo" style="display:none;padding:8px 18px;font-size:16px">繼續 ▶</button></div>
+</div></div>
+
+<!-- QR fullscreen -->
+<div class="ov" id="qrOv" style="background:#fff;color:#111;flex-direction:column;gap:14px;cursor:pointer">
+  <h2 style="font-size:clamp(24px,4vw,48px);font-weight:900">📱 掃描加入投票（不用登入）</h2>
+  <div id="qrBig" style="width:min(62vh,80vw)"></div>
+  <p id="qrUrl" style="font-size:clamp(14px,2vw,22px)"></p>
+  <p style="color:#888">（點任何地方關閉）</p>
+</div>
+
+<!-- end -->
+<div class="ov" id="endOv"><div class="card" style="text-align:center">
+  <h2 id="endT">🎉 試玩版結束</h2>
+  <div class="sub" id="endS"></div>
+  <div class="row" style="justify-content:center">
+    <button class="gbtn" id="endAgain">↩ 回到岔路口，選別條路</button>
+    <button class="gbtn ghost" id="endRestart">從頭再玩</button>
+  </div>
+</div></div>
+
+<script src="config.js" onerror="window.__noCfg=true"></script>
+<script type="module">
+/* =================== VOTE BACKEND =================== */
+let api=null, backendMode='offline';
+try{
+  const m = await import('./common.js');
+  api = await m.connect();
+  backendMode = api.mode;
+}catch(e){ console.warn('投票系統未連線，改用主持人手動選',e); api=null; }
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function updateNet(){
+  const c=$('netChip'), lb=$('loginBtn');
+  if(!api){ c.className='chip warn'; c.textContent='⚠️ 投票離線：主持人手動選'; lb.style.display='none'; return; }
+  if(api.mode==='demo'){ c.className='chip demo'; c.textContent='🧪 Demo 投票（同一台電腦）'; lb.style.display='none'; return; }
+  if(api.isHost()){ c.className='chip ok'; c.textContent='🟢 投票已連線（主持人）'; lb.style.display='none'; }
+  else { c.className='chip warn'; c.textContent='⚠️ 尚未登入：投票會改主持人手動選'; lb.style.display=''; }
+}
+if(api && api.onAuth) api.onAuth(()=>updateNet());
+updateNet();
+$('loginBtn').onclick=async()=>{ try{ await api.signIn(); }catch(e){ alertBox('登入失敗：'+e.message); } };
+function alertBox(t){ showHint(t,4000); }
+
+/* =================== AUDIO =================== */
+let actx=null, sound=true;
+function beep(f=880,d=.1,v=.05,type='square'){ if(!sound) return; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume();
+  const o=actx.createOscillator(),g=actx.createGain(); o.type=type; o.frequency.value=f; g.gain.value=v; o.connect(g); g.connect(actx.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+d); o.stop(actx.currentTime+d+.02);}catch(e){} }
+$('sndBtn').onclick=()=>{ sound=!sound; $('sndBtn').textContent=sound?'🔊':'🔇'; };
+$('fsBtn').onclick=()=>{ try{ document.fullscreenElement? document.exitFullscreen() : document.documentElement.requestFullscreen(); }catch(e){} };
+
+/* =================== QR =================== */
+const voteUrl = new URL('index.html', location.href).href;
+function makeQR(el,size){ el.innerHTML=''; try{ new QRCode(el,{text:voteUrl,width:size,height:size,correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent=voteUrl; } }
+function showQR(){ makeQR($('qrBig'),800); $('qrUrl').textContent=voteUrl; $('qrOv').classList.add('on'); }
+$('qrBtn').onclick=showQR; $('qrBtn2').onclick=showQR; $('qrOv').onclick=()=>$('qrOv').classList.remove('on');
+
+/* =================== MAP =================== */
+const T=16, COLS=20, ROWS=12, VW=COLS*T, VH=ROWS*T;
+const RAW=[
+ "####################",
+ "#aaaaa#bbbbbbbbbbbb#",
+ "#aaaaa#bbbbbbbbbbbb#",
+ "#aaaaa#bbbbbbbbbbbb#",
+ "###D######D#########",
+ "#..................#",
+ "#..................#",
+ "######D#######D#####",
+ "#ccccccc#dddddddddd#",
+ "#ccccccc#dddddddddd#",
+ "#ccccccc#dddddddddd#",
+ "####################",
+];
+const grid = RAW.map(r=>r.split(''));
+const FURN = {}; // "r,c" -> type (blocked)
+function furn(r,c,t){ FURN[r+','+c]=t; }
+furn(1,1,'bedL'); furn(1,2,'bedR'); furn(1,4,'desk'); furn(1,5,'deskPhone'); furn(3,5,'plant');
+furn(2,11,'orL'); furn(2,12,'orM'); furn(2,13,'orR'); furn(1,15,'machine'); furn(1,7,'shelf'); furn(1,8,'shelf'); furn(1,18,'sink');
+furn(9,2,'pbed'); furn(9,4,'pbed'); furn(8,1,'shelf'); furn(10,7,'plant');
+for(let c=11;c<=17;c++) furn(9,c, c===14?'window':'counter'); furn(8,17,'fridge'); furn(8,18,'fridge');
+furn(5,9,'plant2'); furn(6,18,'vending');
+const REGION={a:'值班室',b:'OR 開刀房',c:'恢復室',d:'血庫'};
+const FLOOR_COL={a:['#7a5c3c','#6f5335'],b:['#7fb3a6','#74a89b'],c:['#a7bccd','#9cb1c2'],d:['#b9b9c6','#aeaebb'],'.':['#93a7a4','#889c99'],D:['#93a7a4','#889c99']};
+
+/* NPCs */
+const LOOKS={
+  me:{cap:'#3ef08a',coat:'#f4f6f8',shirt:'#2bb3c9',pants:'#1f6f8b',hair:'#2a1d14'},
+  junior:{cap:'#3ef08a',coat:'#2bb3c9',shirt:'#2bb3c9',pants:'#1f6f8b',hair:'#3a2a1a',glasses:true},
+  surgeon:{cap:'#3f6fd1',coat:'#3f8f5a',shirt:'#3f8f5a',pants:'#2f6e45',hair:'#222',mask:true},
+  nurse:{cap:'#ff9ec0',coat:'#e86f9a',shirt:'#e86f9a',pants:'#c95582',hair:'#2a1d14',hairLong:true},
+  blood:{coat:'#ffffff',shirt:'#dfe6ea',pants:'#556',hair:'#222',glasses:true},
+  attending:{coat:'#f4f6f8',shirt:'#334',pants:'#333',hair:'#777',glasses:true},
+};
+const NAMES={me:'你',junior:'學弟',surgeon:'外科醫師',nurse:'恢復室護理師',blood:'血庫醫檢師',attending:'主治（LINE）',phone:'📞 電話'};
+const NPCS=[
+  {id:'surgeon',r:3,c:12,dir:'left',look:'surgeon'},
+  {id:'nurse',r:9,c:6,dir:'up',look:'nurse'},
+  {id:'blood',r:10,c:14,dir:'up',look:'blood'},
+];
+function npcAt(r,c){ return NPCS.find(n=>n.r===r&&n.c===c&&!n.hidden); }
+function walkable(r,c){
+  if(r<0||c<0||r>=ROWS||c>=COLS) return false;
+  const g=grid[r][c]; if(g==='#') return false;
+  if(FURN[r+','+c]) return false;
+  if(npcAt(r,c)) return false;
+  return true;
+}
+
+/* =================== PLAYER =================== */
+const P={r:2,c:3,fr:2,fc:3,t:1,dir:'down',walk:0,moving:false};
+const STEP=0.17;
+let mode='title'; // title | walk | busy
+let held=null, autoPath=null, autoDone=null;
+const keys={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+const DIRV={up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]};
+document.addEventListener('keydown',e=>{
+  if(keys[e.key]){ held=keys[e.key]; e.preventDefault(); }
+  if(e.key===' '||e.key==='Enter'){ e.preventDefault(); okPressed(); }
+});
+document.addEventListener('keyup',e=>{ if(keys[e.key]===held) held=null; });
+if(matchMedia('(pointer:coarse)').matches) document.body.classList.add('touch');
+document.querySelectorAll('#pad button').forEach(b=>{
+  const d=b.dataset.d;
+  b.addEventListener('pointerdown',e=>{ e.preventDefault(); if(d==='ok') okPressed(); else held=d; });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{ if(held===d) held=null; }));
+});
+
+function tryStep(dir){
+  P.dir=dir; const [dr,dc]=DIRV[dir];
+  if(!walkable(P.r+dr,P.c+dc)) return false;
+  P.fr=P.r; P.fc=P.c; P.r+=dr; P.c+=dc; P.t=0; P.moving=true; return true;
+}
+function update(dt){
+  if(P.moving){
+    P.t+=dt/STEP; P.walk+=dt*10;
+    if(P.t>=1){ P.t=1; P.moving=false; onArrive(); }
+  }
+  if(!P.moving){
+    if(autoPath && autoPath.length){ const n=autoPath.shift(); const dir=n[0]<P.r?'up':n[0]>P.r?'down':n[1]<P.c?'left':'right'; tryStep(dir); }
+    else if(autoPath){ autoPath=null; const f=autoDone; autoDone=null; f&&f(); }
+    else if(mode==='walk' && held) tryStep(held);
+  }
+  bubbleT+=dt;
+}
+function bfs(tr,tc){
+  const q=[[P.r,P.c]], prev={}; prev[P.r+','+P.c]=null;
+  while(q.length){ const [r,c]=q.shift(); if(r===tr&&c===tc) break;
+    for(const [dr,dc] of Object.values(DIRV)){ const nr=r+dr,nc=c+dc,k=nr+','+nc; if(k in prev||!walkable(nr,nc)) continue; prev[k]=[r,c]; q.push([nr,nc]); } }
+  if(!((tr+','+tc) in prev)) return [];
+  const path=[]; let cur=[tr,tc]; while(cur && !(cur[0]===P.r&&cur[1]===P.c)){ path.unshift(cur); cur=prev[cur[0]+','+cur[1]]; }
+  return path;
+}
+function walkTo(r,c){ return new Promise(res=>{ autoPath=bfs(r,c); autoDone=res; if(!autoPath.length){ autoPath=null; res(); } }); }
+function face(dir){ P.dir=dir; }
+
+/* =================== TRIGGERS =================== */
+const TRIG=[]; // {r,c,once,fn,done}
+function trigger(r,c,fn,opts={}){ TRIG.push({r,c,fn,once:opts.once!==false,done:false,area:opts.area}); }
+function onArrive(){
+  if(mode!=='walk') return;
+  for(const t of TRIG){
+    if(t.done) continue;
+    const hit = t.area ? t.area(P.r,P.c) : (t.r===P.r&&t.c===P.c);
+    if(hit){ if(t.once) t.done=true; held=null; run(t.fn); break; }
+  }
+}
+async function run(fn){ mode='busy'; showHint(''); try{ await fn(); }catch(e){ console.error(e); } if(mode==='busy') mode='walk'; }
+
+/* =================== RENDER =================== */
+const cv=$('cv'), tx=$('tx'), ctx=cv.getContext('2d'), tctx=tx.getContext('2d');
+const pc=document.createElement('canvas'); pc.width=VW; pc.height=VH; const g=pc.getContext('2d');
+let scale=1, CW=0, CH=0, dpr=1;
+function layout(){
+  const st=$('stage').getBoundingClientRect(); dpr=window.devicePixelRatio||1;
+  scale=Math.min(st.width/VW, st.height/VH); CW=Math.floor(VW*scale); CH=Math.floor(VH*scale);
+  const w=$('wrap'); w.style.width=CW+'px'; w.style.height=CH+'px';
+  cv.width=CW*dpr; cv.height=CH*dpr; tx.width=CW*dpr; tx.height=CH*dpr;
+}
+window.addEventListener('resize',layout); layout();
+function R(x,y,w,h,col){ g.fillStyle=col; g.fillRect(Math.round(x),Math.round(y),w,h); }
+
+function drawTile(r,c,t){
+  const x=c*T,y=r*T,ch=grid[r][c];
+  if(ch==='#'){
+    const below = r+1<ROWS && grid[r+1][c]!=='#';
+    R(x,y,T,T,'#2a3142'); if(below){ R(x,y+6,T,10,'#d8d2c4'); R(x,y+14,T,2,'#9b9484'); R(x,y,T,6,'#3a4357'); }
+    else { R(x,y,T,T,'#252c3b'); R(x,y,T,1,'#323b4e'); }
+    return;
+  }
+  const fc=FLOOR_COL[ch]||FLOOR_COL['.'];
+  R(x,y,T,T,fc[(r+c)%2]);
+  if(ch==='b'){ R(x,y,T,1,'rgba(255,255,255,.08)'); R(x,y,1,T,'rgba(255,255,255,.08)'); }
+  if(ch==='D'){ R(x,y,T,T,'#93a7a4'); R(x+1,y,14,3,'#6b4a2e'); R(x+2,y+3,12,1,'rgba(0,0,0,.25)'); }
+  const f=FURN[r+','+c]; if(!f) return;
+  switch(f){
+    case 'bedL': R(x+1,y+2,15,13,'#e9e9ef'); R(x+2,y+3,6,5,'#fff'); R(x+8,y+3,8,11,'#6b4f8a'); break;
+    case 'bedR': R(x,y+2,15,13,'#e9e9ef'); R(x,y+3,14,11,'#6b4f8a'); break;
+    case 'desk': R(x,y+4,16,10,'#8a6a45'); R(x,y+14,16,2,'#5a4028'); R(x+3,y+5,7,5,'#d8e6f0'); break;
+    case 'deskPhone': R(x,y+4,16,10,'#8a6a45'); R(x,y+14,16,2,'#5a4028'); R(x+4,y+6,7,4,'#222'); if(ringing && Math.floor(t*8)%2) R(x+3,y+3,9,2,'#ff4d5e'); R(x+12,y+5,3,4,'#f3f3f3'); break;
+    case 'plant': R(x+5,y+9,6,6,'#8a5a3c'); R(x+3,y+2,10,8,'#2e8b57'); R(x+6,y,4,4,'#3cb371'); break;
+    case 'plant2': R(x+5,y+9,6,6,'#8a5a3c'); R(x+3,y+2,10,8,'#2e8b57'); break;
+    case 'orL': case 'orM': case 'orR': R(x,y+3,16,10,'#cfd8dd'); R(x,y+5,16,6,'#3f8f5a'); if(f==='orL') R(x+2,y+4,5,8,'#f1c7a0'); if(f==='orM'&&Math.floor(t*2)%2) R(x+6,y,4,2,'#fffbe0'); break;
+    case 'machine': R(x+2,y+1,12,14,'#cdd5db'); R(x+3,y+2,10,6,'#05090d'); for(let i=0;i<9;i++){ const ph=(i+Math.floor(t*12))%9; R(x+3+i,y+5+(ph===4?-2:ph===5?1:0),1,1,'#3ef08a'); } break;
+    case 'shelf': R(x+1,y+1,14,14,'#7a6a55'); R(x+2,y+3,12,4,'#3b3328'); R(x+2,y+9,12,4,'#3b3328'); R(x+3,y+4,3,3,'#e74c3c'); R(x+8,y+4,3,3,'#3fd6f2'); R(x+4,y+10,3,3,'#f5c542'); break;
+    case 'sink': R(x+2,y+3,12,9,'#dfe6ea'); R(x+4,y+5,8,5,'#9fd6e6'); break;
+    case 'pbed': R(x+1,y+1,14,14,'#e6ecef'); R(x+3,y+2,10,4,'#fff'); R(x+3,y+6,10,8,'#9fb8d4'); R(x+5,y+2,6,4,'#f1c7a0'); break;
+    case 'counter': R(x,y+4,16,10,'#5f6670'); R(x,y+4,16,2,'#8b929c'); break;
+    case 'window': R(x,y+4,16,10,'#5f6670'); R(x+2,y+1,12,6,'#9fd6e6'); R(x,y+4,16,2,'#8b929c'); break;
+    case 'fridge': R(x+1,y,14,15,'#e3e8ec'); R(x+2,y+2,12,11,'#c9d3da'); R(x+4,y+4,3,6,'#a3152a'); R(x+9,y+4,3,6,'#a3152a'); break;
+    case 'vending': R(x+2,y,12,15,'#c0392b'); R(x+4,y+2,8,7,'#9fd6e6'); R(x+5,y+11,6,2,'#222'); break;
+  }
+}
+function drawPerson(px,py,dir,walk,L){
+  const fr = walk==null?0:Math.floor(walk)%4;
+  const x=Math.round(px), y=Math.round(py)-4;
+  R(x+3,y+18,10,2,'rgba(0,0,0,.25)');
+  const lo=[0,1,0,-1][fr];
+  R(x+4,y+14+(lo>0?-1:0),3,4,L.pants); R(x+9,y+14+(lo<0?-1:0),3,4,L.pants);
+  R(x+3,y+8,10,7,L.coat); R(x+7,y+8,2,6,L.shirt);
+  R(x+1,y+9+(lo>0?1:0),2,5,L.coat); R(x+13,y+9+(lo<0?1:0),2,5,L.coat);
+  R(x+1,y+13+(lo>0?1:0),2,1,'#f1c7a0'); R(x+13,y+13+(lo<0?1:0),2,1,'#f1c7a0');
+  // head
+  R(x+3,y,10,9,'#f1c7a0');
+  if(dir==='up'){ R(x+3,y,10,9,L.hair); }
+  else{
+    R(x+3,y,10,3,L.hair);
+    if(dir==='left') R(x+10,y+1,3,6,L.hair); else if(dir==='right') R(x+3,y+1,3,6,L.hair); else { R(x+3,y+1,1,4,L.hair); R(x+12,y+1,1,4,L.hair); }
+    if(L.hairLong){ R(x+2,y+2,2,8,L.hair); R(x+12,y+2,2,8,L.hair); }
+  }
+  if(L.cap) R(x+2,y-1,12,3,L.cap);
+  if(dir==='down'){ R(x+5,y+4,2,2,'#141414'); R(x+9,y+4,2,2,'#141414'); if(L.glasses){ R(x+4,y+4,8,1,'#141414'); } }
+  if(dir==='left'){ R(x+4,y+4,2,2,'#141414'); }
+  if(dir==='right'){ R(x+10,y+4,2,2,'#141414'); }
+  if(L.mask && dir!=='up') R(dir==='left'?x+3:dir==='right'?x+6:x+4, y+6, dir==='down'?8:7, 3, '#9fd3e6');
+}
+let ringing=false, t=0, bubbleT=0, bubbles=[]; // {r,c,kind:'!'|'z'|'?',until}
+let TX=[];
+function label(text,ix,iy,o={}){ TX.push({text,ix,iy,...o}); }
+function render(){
+  g.imageSmoothingEnabled=false;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) drawTile(r,c,t);
+  // labels on doors
+  label('值班室',3.5*T,4.55*T,{size:7,bg:'rgba(10,16,34,.85)',col:'#f3cf6b'});
+  label('OR 開刀房',10.5*T,4.55*T,{size:7,bg:'rgba(10,16,34,.85)',col:'#f3cf6b'});
+  label('恢復室',6.5*T,7.45*T,{size:7,bg:'rgba(10,16,34,.85)',col:'#f3cf6b'});
+  label('血庫',14.5*T,7.45*T,{size:7,bg:'rgba(10,16,34,.85)',col:'#f3cf6b'});
+  // entities sorted by y
+  const ents=NPCS.filter(n=>!n.hidden).map(n=>({y:n.r*T,draw:()=>drawPerson(n.c*T,n.r*T,n.dir,n.walk??null,LOOKS[n.look])}));
+  const py=(P.fr+(P.r-P.fr)*P.t)*T, px=(P.fc+(P.c-P.fc)*P.t)*T;
+  ents.push({y:py,draw:()=>drawPerson(px,py,P.dir,P.moving?P.walk:null,LOOKS.me)});
+  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
+  // bubbles
+  const now=performance.now()/1000;
+  bubbles=bubbles.filter(b=>b.until>now);
+  for(const b of bubbles){
+    const bx=(b.who==='me'?px:b.c*T)+8, by=(b.who==='me'?py:b.r*T)-14 - Math.abs(Math.sin((now-b.start)*9))*3*(now-b.start<.5?1:0);
+    R(bx-6,by-7,12,11,'#fff'); R(bx-5,by-8,10,1,'#fff'); R(bx-5,by+4,10,1,'#fff'); R(bx-1,by+5,3,2,'#fff');
+    if(b.kind==='!'){ R(bx-1,by-5,2,6,'#e0414f'); R(bx-1,by+2,2,2,'#e0414f'); }
+    else if(b.kind==='z'){ label('Zz',bx,by-1,{size:6,col:'#2f7de1',shadow:false}); }
+    else if(b.kind==='?'){ label('?',bx,by-1,{size:8,col:'#2f7de1',shadow:false,w:900}); }
+    else if(b.kind==='♪'){ label('♪',bx,by-1,{size:8,col:'#e0414f',shadow:false,w:900}); }
+  }
+  ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(pc,0,0,cv.width,cv.height);
+  // text overlay
+  tctx.setTransform(dpr,0,0,dpr,0,0); tctx.clearRect(0,0,CW,CH); tctx.textAlign='center'; tctx.textBaseline='middle';
+  for(const o of TX){
+    const size=Math.max(10,(o.size||7)*scale); tctx.font=`${o.w||900} ${size}px "Noto Sans TC",sans-serif`;
+    const X=o.ix*scale, Y=o.iy*scale;
+    if(o.bg){ const w=tctx.measureText(o.text).width+12; tctx.fillStyle=o.bg; tctx.fillRect(X-w/2,Y-size*.7,w,size*1.4); tctx.strokeStyle='#c9a55a'; tctx.lineWidth=1; tctx.strokeRect(X-w/2,Y-size*.7,w,size*1.4); }
+    tctx.fillStyle=o.col||'#fff'; if(o.shadow!==false&&!o.bg){ tctx.lineWidth=3; tctx.strokeStyle='rgba(0,0,0,.6)'; tctx.strokeText(o.text,X,Y); }
+    tctx.fillText(o.text,X,Y);
+  }
+  TX=[];
+}
+function bubble(who,kind,dur=1.2){ const n=NPCS.find(x=>x.id===who); const now=performance.now()/1000; bubbles.push({who,r:n?n.r:0,c:n?n.c:0,kind,start:now,until:now+dur}); }
+
+/* =================== DIALOG =================== */
+let dlgState=null;
+function drawPortrait(sp){
+  const c=$('pt').getContext('2d'); const L=Object.assign({skin:'#f1c7a0'},LOOKS[sp]||LOOKS.junior);
+  const P2=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h);};
+  P2(0,0,32,32,'#141d3a');
+  if(sp==='phone'){ P2(10,4,12,24,'#222'); P2(11,6,10,18,'#4ad0ff'); P2(14,25,4,1,'#888'); return; }
+  P2(5,25,22,7,L.coat); P2(13,25,6,7,L.shirt); P2(14,24,4,2,L.skin);
+  P2(8,7,16,17,L.skin); P2(7,5,18,6,L.hair); P2(7,5,3,14,L.hair); P2(22,5,3,10,L.hair);
+  if(L.hairLong){ P2(5,9,4,16,L.hair); P2(23,9,4,16,L.hair); }
+  if(L.cap){ P2(6,3,20,6,L.cap); }
+  P2(11,14,3,4,'#141414'); P2(18,14,3,4,'#141414'); P2(11,14,1,1,'#fff'); P2(18,14,1,1,'#fff');
+  if(L.glasses){ P2(10,13,5,1,'#222'); P2(17,13,5,1,'#222'); P2(10,18,5,1,'#222'); P2(17,18,5,1,'#222'); P2(15,14,2,1,'#222'); }
+  if(L.mask){ P2(9,18,14,6,'#9fd3e6'); } else { P2(14,20,4,1,'#b9685c'); P2(9,18,2,1,'rgba(255,120,120,.6)'); P2(21,18,2,1,'rgba(255,120,120,.6)'); }
+  if(sp==='attending'){ P2(24,22,6,9,'#222'); P2(25,23,4,6,'#4ad0ff'); }
+}
+function say(sp,text){
+  return new Promise(res=>{
+    $('dlgN').textContent=NAMES[sp]||sp; drawPortrait(sp); $('dlgT').textContent='';
+    $('dlg').classList.add('on');
+    dlgState={chars:Array.from(text),n:0,res};
+    if(sp!=='me') beep(660,.04,.03);
+  });
+}
+function dlgTick(dt){
+  if(!dlgState) return;
+  if(dlgState.n<dlgState.chars.length){ dlgState.n=Math.min(dlgState.chars.length,dlgState.n+dt*32); $('dlgT').textContent=dlgState.chars.slice(0,Math.floor(dlgState.n)).join(''); }
+}
+function okPressed(){
+  if(dlgState){
+    if(dlgState.n<dlgState.chars.length){ dlgState.n=dlgState.chars.length; $('dlgT').textContent=dlgState.chars.join(''); }
+    else { const r=dlgState.res; dlgState=null; $('dlg').classList.remove('on'); r(); }
+    return;
+  }
+  if($('skitOv').classList.contains('on')){ if(performance.now()-skitOpenedAt>3000) $('skitGo').click(); return; }
+  if($('vGo').style.display!=='none' && $('voteOv').classList.contains('on')){ $('vGo').click(); return; }
+}
+$('dlg').addEventListener('click',okPressed);
+async function talk(lines){ for(const [sp,txt] of lines) await say(sp,txt); }
+
+/* =================== HINT =================== */
+let hintT=null;
+function showHint(t,ms){ const h=$('hint'); clearTimeout(hintT); if(!t){ h.classList.remove('on'); return; } h.textContent=t; h.classList.add('on'); if(ms) hintT=setTimeout(()=>h.classList.remove('on'),ms); }
+
+/* =================== SKIT =================== */
+let skitOpenedAt=0;
+function skit({scene,roles,cue,crowd}){
+  return new Promise(res=>{
+    $('skitScene').textContent=scene;
+    $('skitRoles').innerHTML=roles.map(([r,d])=>`<div class="role"><b>${esc(r)}</b>　${esc(d)}</div>`).join('');
+    $('skitCue').textContent=cue;
+    $('skitCrowd').style.display=crowd?'':'none'; $('skitCrowd').textContent=crowd?('📣 全場一起喊：'+crowd):'';
+    skitOpenedAt=performance.now(); $('skitOv').classList.add('on'); beep(523,.12); setTimeout(()=>beep(784,.18),130);
+    $('skitGo').onclick=()=>{ $('skitOv').classList.remove('on'); res(); };
+  });
+}
+
+/* =================== VOTE =================== */
+function vote({title,kind='dir',options,answer=null,seconds=30}){
+  return new Promise(async res=>{
+    const ov=$('voteOv'); let counts=[0,0,0,0], online=false, unsub=null, over=false, picked=null;
+    const round='r'+Date.now().toString(36);
+    $('vKind').textContent= kind==='dir'?'🧭 全場投票：下一步去哪裡？':'❓ 全場投票：選一個答案';
+    $('vTitle').textContent=title; $('vReveal').textContent=''; $('vGo').style.display='none'; $('vEnd').style.display='';
+    $('vOpts').innerHTML=options.map((o,i)=>`<div class="opt" data-i="${i+1}"><div class="fill f${i+1}"></div><div class="n">${'①②③④'[i]}</div><div class="lb">${esc(o)}</div><div class="ct"></div></div>`).join('');
+    makeQR($('vQr'),200);
+    const endsAt=Date.now()+seconds*1000;
+    if(api && api.isHost()){
+      try{
+        await api.setState({status:'open',round,title,kind,options,seconds,endsAt,result:null,tie:false,counts:null});
+        online=true; unsub=api.onVotes(round,c=>{ counts=c; paint(); });
+      }catch(e){ console.error(e); online=false; }
+    }
+    $('vNote').textContent = online? '觀眾手機已同步顯示題目' : '（投票未連線：倒數結束後，主持人點最多人的選項）';
+    function paint(){
+      const tot=counts.reduce((a,b)=>a+b,0);
+      document.querySelectorAll('#vOpts .opt').forEach((el,i)=>{
+        el.querySelector('.fill').style.width=(tot?counts[i]/tot*100:0)+'%';
+        el.querySelector('.ct').textContent= online? `${counts[i]} 票` : '';
+      });
+      $('vTotal').textContent= online? `共 ${tot} 票` : '';
+    }
+    paint();
+    ov.classList.add('on');
+    let lastSec=-1;
+    const iv=setInterval(()=>{
+      const left=Math.max(0,endsAt-Date.now()); const s=Math.ceil(left/1000);
+      $('vCd').textContent=s;
+      if(s!==lastSec){ lastSec=s; if(s<=5&&s>0) beep(1000,.06,.05); }
+      if(left<=0 && !over) finish(null);
+    },150);
+    $('vEnd').onclick=()=>finish(null);
+    $('vOpts').onclick=e=>{ const o=e.target.closest('.opt'); if(!o) return; if(!over || picked===null) finish(+o.dataset.i, true); };
+    async function finish(manual, isManual){
+      if(over && picked!==null) return;
+      over=true; clearInterval(iv); $('vCd').textContent='0'; $('vEnd').style.display='none';
+      let win=manual, tie=false;
+      if(win==null){
+        const max=Math.max(...counts);
+        if(max>0){ const ws=[0,1,2,3].filter(i=>counts[i]===max); tie=ws.length>1; win=ws[Math.floor(Math.random()*ws.length)]+1; }
+      }
+      if(win==null){ $('vReveal').textContent='⏰ 時間到！主持人請點最多人的選項'; $('vReveal').style.color='#ffd23f'; return; }
+      picked=win; beep(784,.12); setTimeout(()=>beep(1046,.22),140);
+      if(unsub){ unsub(); unsub=null; }
+      if(online){ try{ await api.setState({status:'closed',result:win,tie,counts}); }catch(e){ console.error(e); } }
+      document.querySelectorAll('#vOpts .opt').forEach((el,i)=>{ el.classList.toggle('win',i+1===win); el.classList.toggle('lose',i+1!==win); if(answer&&i+1===answer) el.classList.add('correct'); });
+      let msg = `🏆 ${isManual?'主持人選擇':'全場選擇'}：${'①②③④'[win-1]} ${options[win-1]}${tie?'（平手，抽籤決定）':''}`;
+      if(answer) msg += answer===win ? '　🎉 答對了！' : `　😱 正解是 ${'①②③④'[answer-1]}`;
+      $('vReveal').style.color = answer && answer!==win ? '#ff9f9f' : '#3ef08a';
+      $('vReveal').textContent=msg; $('vGo').style.display='';
+      $('vGo').onclick=async()=>{ ov.classList.remove('on'); if(online){ try{ await api.setState({status:'idle'}); }catch(e){} } res(win); };
+    }
+  });
+}
+
+/* =================== STORY（範例劇情，之後換成你的劇本） =================== */
+let junctionTrig=null;
+function setupStory(){
+  TRIG.length=0;
+  // 1) 走出值班室到走廊 → 投票去哪
+  junctionTrig = { done:false, once:true, area:(r,c)=>r===5||r===6, fn:junctionVote };
+  TRIG.push(junctionTrig);
+}
+async function intro(){
+  mode='busy'; ringing=true;
+  await wait(600); beep(1200,.08); await wait(160); beep(1200,.08); await wait(160); beep(1200,.08);
+  bubble('me','!',1.0); await wait(900);
+  await talk([['phone','（凌晨 2:13，值班手機響了）'],['junior','學長！今晚好像不太平靜，好幾個地方都在找你……'],['me','我馬上出去看看！']]);
+  ringing=false; mode='walk';
+  showHint('用方向鍵（或十字鍵）走出值班室 ⬇️');
+}
+async function junctionVote(){
+  showHint('');
+  bubble('me','?',1.2); await wait(800);
+  await say('me','走廊上……好幾個地方都在叫我。要先去哪裡呢？');
+  const choice = await vote({title:'學長被 call 了！要先去哪裡？',kind:'dir',options:['往 OR 開刀房','往恢復室','往血庫','回值班室繼續睡'],seconds:30});
+  const routes={1:routeOR,2:routePACU,3:routeBlood,4:routeSleep};
+  await routes[choice]();
+}
+async function exclaim(id){ const n=NPCS.find(x=>x.id===id); bubble(id,'!',1.0); beep(1318,.08,.06); await wait(160); beep(1568,.12,.06); await wait(850); }
+async function routeOR(){
+  await walkTo(3,10); face('right');
+  await exclaim('surgeon');
+  await talk([['surgeon','麻醉！你來得正好～'],['surgeon','我們再 10 分鐘就好了！可以先叫下一台病人嗎？'],['me','（這句話我今晚已經聽第三次了……）']]);
+  await skit({scene:'📍 OR 開刀房｜凌晨 2:20',roles:[['外科醫師','堅持「快好了」'],['麻醉住院醫師','你'],['流動護理師','偷偷看時鐘']],
+    cue:'外科：「再 10 分鐘就好！」\n麻醉：「學長，你兩個小時前也是這樣說……」\n護理師：（默默把下一台的病人推回病房）',crowd:'「快好了～～～！」'});
+  const a=await vote({title:'外科說「快好了」，實際上還要多久？',kind:'quiz',options:['5 分鐘','30 分鐘','2 小時','天亮交班後'],answer:4,seconds:20});
+  await talk([['me',a===4?'全場都懂……麻醉科的默契。':'太天真了，正解是「天亮交班後」。'],['surgeon','（擦汗）好啦好啦，我縫快一點。']]);
+  await ending('OR 路線完成！');
+}
+async function routePACU(){
+  await walkTo(8,6); face('down');
+  await exclaim('nurse');
+  await talk([['nurse','學長！剛出刀的阿伯一直發抖，說他好冷……'],['me','我看看。']]);
+  await skit({scene:'📍 恢復室｜凌晨 2:25',roles:[['恢復室護理師','很擔心'],['阿伯（病人）','抖到床在晃'],['麻醉住院醫師','你']],
+    cue:'阿伯：「醫…醫生…我…是不是…要…升天了…」\n護理師：「學長，他已經蓋三條被子了！」\n麻醉：「先別急，我們來想想原因……」'});
+  const a=await vote({title:'術後在恢復室發抖，最常見的原因是？',kind:'quiz',options:['低體溫','過敏反應','惡性高熱','太想家'],answer:1,seconds:20});
+  await talk([['me',a===1?'沒錯，先保溫、加溫毯，再評估要不要給藥。':'最常見的是低體溫！先保溫、加溫毯。'],['nurse','加溫毯來了！阿伯不抖了～']]);
+  await ending('恢復室路線完成！');
+}
+async function routeBlood(){
+  await walkTo(8,14); face('down');
+  await exclaim('blood');
+  await talk([['blood','要叫血嗎？備血單第三頁還沒簽名喔～'],['me','病人在大出血，可以先發嗎！？']]);
+  await skit({scene:'📍 血庫窗口｜凌晨 2:30',roles:[['血庫醫檢師','堅守流程'],['麻醉住院醫師','跑到喘不過氣'],['旁白','計時中']],
+    cue:'醫檢師：「單子沒填完，我不能發喔～」\n麻醉：（邊喘邊簽名）「簽…簽好了…」\n醫檢師：「好，那你要什麼血型？」',crowd:'「快一點！快一點！」'});
+  const a=await vote({title:'緊急輸血、還不知道血型時，紅血球先給什麼血型？',kind:'quiz',options:['O 型','A 型','B 型','AB 型'],answer:1,seconds:20});
+  await talk([['blood',a===1?'O 型，答對了！拿去～':'是 O 型喔！拿去～'],['me','謝謝！我衝回去了！']]);
+  await ending('血庫路線完成！');
+}
+async function routeSleep(){
+  await walkTo(2,1); face('up');
+  bubble('me','z',2.5); await wait(2000);
+  ringing=true; beep(1200,.08); await wait(160); beep(1200,.08);
+  await talk([['attending','你在睡覺嗎？（已讀）'],['me','（嚇醒）沒、沒有！我馬上出去！']]);
+  ringing=false;
+  junctionTrig.done=false; // 再走到走廊會重新投票
+  showHint('被抓包了……再走出去一次吧 ⬇️',4000);
+}
+async function ending(t){
+  return new Promise(res=>{
+    $('endT').textContent='🎉 '+t; $('endS').textContent='這是試玩版的範例劇情。正式版會換成你的劇本：更多場景、❗NPC、演出段落和投票。';
+    $('endOv').classList.add('on');
+    $('endAgain').onclick=async()=>{ $('endOv').classList.remove('on'); res(); await walkTo(5,10); junctionTrig.done=false; mode='walk'; onArrive(); };
+    $('endRestart').onclick=()=>{ $('endOv').classList.remove('on'); res(); restart(); };
+  });
+}
+function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function restart(){
+  Object.assign(P,{r:2,c:3,fr:2,fc:3,t:1,dir:'down',moving:false}); autoPath=null; held=null;
+  setupStory(); run(intro);
+}
+$('startBtn').onclick=()=>{ $('title').style.display='none'; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} restart(); };
+
+/* =================== LOOP =================== */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; t+=dt;
+  update(dt); dlgTick(dt); render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.__game={P,vote,walkTo,okPressed,get mode(){return mode;},TRIG};
+</script>
+</body>
+</html>
